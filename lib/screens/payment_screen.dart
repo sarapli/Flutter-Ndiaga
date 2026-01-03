@@ -1,0 +1,250 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+
+import '../app_style.dart';
+import '../session.dart';
+
+class PaymentScreen extends StatefulWidget {
+  const PaymentScreen({super.key});
+
+  @override
+  State<PaymentScreen> createState() => _PaymentScreenState();
+}
+
+class _PaymentScreenState extends State<PaymentScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _name = TextEditingController();
+  final _card = TextEditingController();
+  final _exp = TextEditingController();
+  final _cvv = TextEditingController();
+  bool _processing = false;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _card.dispose();
+    _exp.dispose();
+    _cvv.dispose();
+    super.dispose();
+  }
+
+  String? _validateNotEmpty(String? v) => (v == null || v.trim().isEmpty) ? 'Required' : null;
+  String? _validateCard(String? v) => (v == null || v.replaceAll(' ', '').length < 12) ? 'Invalid card' : null;
+  String? _validateExp(String? v) {
+    if (v == null) return 'Invalid';
+    final t = v.replaceAll(' ', '');
+    final m = RegExp(r'^(0[1-9]|1[0-2])[/-]?(\d{2}|\d{4})$');
+    return m.hasMatch(t) ? null : 'MM/YY';
+  }
+  String? _validateCvv(String? v) => (v == null || v.length < 3) ? 'Invalid' : null;
+
+  Future<void> _pay() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _processing = true);
+    await Future<void>.delayed(const Duration(milliseconds: 900));
+    setState(() => _processing = false);
+    _showCompleted();
+  }
+
+  void _showCompleted() {
+    final type = appSession.appointment?.type ?? 'message';
+    final doctor = appSession.doctorName ?? 'your doctor';
+    final icon = type == 'voice'
+        ? Icons.call
+        : type == 'video'
+            ? Icons.videocam_outlined
+            : Icons.message_outlined;
+
+    showDialog(
+      context: context,
+      barrierDismissible: type != 'message',
+      barrierColor: const Color(0xCC8E95A6),
+      builder: (context) {
+        if (type == 'message') {
+          Timer(const Duration(seconds: 2), () {
+            if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+          });
+        }
+        return Center(
+          child: Container(
+            width: 320,
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircleAvatar(
+                  radius: 36,
+                  backgroundColor: const Color(0xFFF0F2F9),
+                  child: Icon(icon, color: kTextColor, size: 30),
+                ),
+                const SizedBox(height: 16),
+                const Text('Completed', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: kTextColor)),
+                const SizedBox(height: 8),
+                Text(
+                  'Your appointment booking successfully completed. $doctor will ${type == 'voice' ? 'Voice Call' : type == 'video' ? 'Video Call' : 'Message'} you soon.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: kMutedTextColor, height: 1.4),
+                ),
+                if (type != 'message') ...[
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        Navigator.of(context).pushNamedAndRemoveUntil('/home-patient', (r) => false);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: kPrimaryColor,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Go to dashboard'),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF9CA3B7)),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Text('Payment', style: TextStyle(color: kTextColor)),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1CA796),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Bank card', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 12),
+                  Container(height: 44, decoration: BoxDecoration(color: const Color(0xFF0F9D8A), borderRadius: BorderRadius.circular(8))),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(child: Container(height: 36, decoration: BoxDecoration(color: const Color(0xFF0F9D8A), borderRadius: BorderRadius.circular(8)))),
+                      const SizedBox(width: 10),
+                      Expanded(child: Container(height: 36, decoration: BoxDecoration(color: const Color(0xFF0F9D8A), borderRadius: BorderRadius.circular(8)))),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Center(
+              child: Text.rich(
+                TextSpan(
+                  text: 'By adding debit / credit card, you agree to the ',
+                  style: TextStyle(color: kMutedTextColor),
+                  children: [
+                    TextSpan(text: 'Terms & Condition', style: TextStyle(color: kPrimaryColor, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _LabeledField(icon: Icons.person_outline, label: 'Name', hint: 'Enter card holder full name', controller: _name, validator: _validateNotEmpty),
+                  const SizedBox(height: 12),
+                  _LabeledField(icon: Icons.credit_card, label: 'Card number', hint: 'Enter card number', controller: _card, keyboardType: TextInputType.number, validator: _validateCard),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(child: _LabeledField(icon: Icons.calendar_month_outlined, label: 'Expire date', hint: 'MM/YY', controller: _exp, validator: _validateExp)),
+                      const SizedBox(width: 12),
+                      Expanded(child: _LabeledField(icon: Icons.lock_outline, label: 'CVV', hint: 'Enter CVV number', controller: _cvv, keyboardType: TextInputType.number, validator: _validateCvv)),
+                    ],
+                  ),
+                  const SizedBox(height: 22),
+                  SizedBox(
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: _processing ? null : _pay,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: kPrimaryColor,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Text(_processing ? 'Processing...' : 'Payment now', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LabeledField extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String hint;
+  final TextEditingController controller;
+  final TextInputType? keyboardType;
+  final String? Function(String?)? validator;
+
+  const _LabeledField({
+    required this.icon,
+    required this.label,
+    required this.hint,
+    required this.controller,
+    this.keyboardType,
+    this.validator,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(children: [Icon(icon, size: 20, color: const Color(0xFF9CA3B7)), const SizedBox(width: 8), Text(label, style: const TextStyle(color: kTextColor))]),
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          validator: validator,
+          decoration: const InputDecoration(
+            hintText: '',
+            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: kDividerColor)),
+            focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: kDividerColor)),
+          ).copyWith(hintText: hint, hintStyle: const TextStyle(color: kMutedTextColor)),
+        ),
+      ],
+    );
+  }
+}
