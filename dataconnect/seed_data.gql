@@ -1,0 +1,50 @@
+mutation SeedData @transaction @auth(level: PUBLIC, insecureReason: "This mutation is for seeding data and is safe to expose to the public") {
+  user_insertMany(data: [
+    {
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      createdAt: "2024-04-24T12:00:00Z",
+      displayName: "Alice Smith",
+      role: "Admin"
+    },
+    {
+      id: "550e8400-e29b-41d4-a716-446655440001",
+      createdAt: "2024-04-24T13:00:00Z",
+      displayName: "Bob Johnson",
+      role: "Doctor"
+    }
+  ])
+  patient_insertMany(data: [
+    {
+      id: "650e8400-e29b-41d4-a716-446655440000",
+      firstName: "Charlie",
+      lastName: "Brown",
+      gender: "Male",
+      dateOfBirth: "1990-01-01",
+      admissionDate: "2024-04-24T14:00:00Z"
+    },
+    {
+      id: "650e8400-e29b-41d4-a716-446655440001",
+      firstName: "Diana",
+      lastName: "Davis",
+      gender: "Female",
+      dateOfBirth: "1985-05-05",
+      admissionDate: "2024-04-24T15:00:00Z"
+    }
+  ])
+  appointment_insertMany(data: [
+    {
+      id: "750e8400-e29b-41d4-a716-446655440000",
+      patientId: "650e8400-e29b-41d4-a716-446655440000",
+      staffId: "550e8400-e29b-41d4-a716-446655440001",
+      appointmentDateTime: "2024-04-25T10:00:00Z",
+      status: "Scheduled"
+    },
+    {
+      id: "750e8400-e29b-41d4-a716-446655440001",
+      patientId: "650e8400-e29b-41d4-a716-446655440001",
+      staffId: "550e8400-e29b-41d4-a716-446655440001",
+      appointmentDateTime: "2024-04-25T11:00:00Z",
+      status: "Scheduled"
+    }
+  ])
+}

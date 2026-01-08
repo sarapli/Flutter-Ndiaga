@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../app_routes.dart';
 import '../app_style.dart';
@@ -40,13 +42,69 @@ class _SignInScreenState extends State<SignInScreen> {
     }
   }
 
+  Future<void> _handleSocialPostAuth() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final db = FirebaseFirestore.instance;
+    final ref = db.collection('users').doc(user.uid);
+    final snap = await ref.get();
+    final data = snap.data() ?? <String, dynamic>{};
+    final role = data['role'] as String?;
+
+    if (role == 'patient' || role == 'doctor') {
+      if (!mounted) return;
+      _navigateByRole(role!);
+      return;
+    }
+
+    if (!mounted) return;
+    final selectedRole = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Choose your role'),
+          content: const Text('Are you signing in as a patient or a doctor?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop('patient'),
+              child: const Text('Patient'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop('doctor'),
+              child: const Text('Doctor'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (selectedRole == null) return;
+
+    await ref.set({'role': selectedRole}, SetOptions(merge: true));
+    if (!mounted) return;
+    _navigateByRole(selectedRole);
+  }
+
+  void _navigateByRole(String role) {
+    final nav = Navigator.of(context);
+    if (role == 'doctor') {
+      nav.pushNamedAndRemoveUntil(AppRoutes.homeDoctor, (r) => false);
+    } else {
+      nav.pushNamedAndRemoveUntil(AppRoutes.homePatient, (r) => false);
+    }
+  }
+
   Future<void> _doGoogle() async {
     if (_loading) return;
     setState(() => _loading = true);
     try {
-      await AuthService.instance.signInWithGoogle();
-      if (!mounted) return;
-      Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.homePatient, (r) => false);
+      final user = await AuthService.instance.signInWithGoogle();
+      if (user == null) {
+        return; // user cancelled popup or sign-in failed silently
+      }
+      await _handleSocialPostAuth();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Google sign-in failed: $e')));
@@ -59,9 +117,11 @@ class _SignInScreenState extends State<SignInScreen> {
     if (_loading) return;
     setState(() => _loading = true);
     try {
-      await AuthService.instance.signInWithFacebook();
-      if (!mounted) return;
-      Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.homePatient, (r) => false);
+      final user = await AuthService.instance.signInWithFacebook();
+      if (user == null) {
+        return; // user cancelled login
+      }
+      await _handleSocialPostAuth();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Facebook sign-in failed: $e')));

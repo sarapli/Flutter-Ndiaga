@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../app_style.dart';
 import '../app_routes.dart';
-import '../session.dart';
 
 class AppointmentsScreen extends StatefulWidget {
   const AppointmentsScreen({super.key});
@@ -14,51 +15,6 @@ class AppointmentsScreen extends StatefulWidget {
 class _AppointmentsScreenState extends State<AppointmentsScreen> {
   bool upcoming = true;
 
-  List<_ApptItem> get _baseUpcoming => const [
-        _ApptItem(
-          doctor: 'Dr. Brycen Bradford',
-          subtitle: 'Voice Call  •  Accepted',
-          type: 'voice',
-          timeRange: '09:00 AM - 10:00 AM',
-          dateLabel: 'Today - 10 June, 2020',
-          status: 'Accepted',
-        ),
-        _ApptItem(
-          doctor: 'Dr. Mahmud Nik Hasan',
-          subtitle: 'Messaging  •  In Progress',
-          type: 'message',
-          timeRange: '11:00 AM - 11:30 AM',
-          dateLabel: 'Today - 10 June, 2020',
-          status: 'In Progress',
-        ),
-        _ApptItem(
-          doctor: 'Dr. Tierra Riley',
-          subtitle: 'Video Call  •  Decline',
-          type: 'video',
-          timeRange: '09:00 AM - 10:00 AM',
-          dateLabel: 'Today - 10 June, 2020',
-          status: 'Decline',
-        ),
-      ];
-
-  List<_ApptItem> _buildUpcoming() {
-    final list = <_ApptItem>[];
-    // Inject dynamic item from last booking (prototype)
-    final a = appSession.appointment;
-    final doctor = appSession.doctorName;
-    if (a != null && doctor != null) {
-      list.add(_ApptItem(
-        doctor: doctor,
-        subtitle: '${_typeLabel(a.type)}  •  In Progress',
-        type: a.type,
-        timeRange: _expandOneHour(a.time),
-        dateLabel: 'Today - 10 June, 2020',
-        status: 'In Progress',
-      ));
-    }
-    list.addAll(_baseUpcoming);
-    return list;
-  }
 
   static String _expandOneHour(String start) {
     // very naive: just return "start - +1h" as mock
@@ -78,7 +34,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final items = upcoming ? _buildUpcoming() : const <_ApptItem>[];
+    final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -120,28 +76,63 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
           ),
           if (upcoming)
             Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.all(16),
-                itemCount: items.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 12),
-                itemBuilder: (context, i) {
-                  final it = items[i];
-                  return _AppointmentCard(
-                    item: it,
-                    onTap: () {
-                      if (it.type == 'message') {
-                        Navigator.of(context).pushNamed(AppRoutes.chat, arguments: {'doctor': it.doctor});
-                      } else if (it.type == 'voice') {
-                        Navigator.of(context).pushNamed(AppRoutes.voiceCall, arguments: {'doctor': it.doctor});
-                      } else if (it.type == 'video') {
-                        Navigator.of(context).pushNamed(AppRoutes.videoCall, arguments: {'doctor': it.doctor});
-                      } else {
-                        Navigator.of(context).pushNamed(AppRoutes.appointmentDetail, arguments: it.toArgs());
-                      }
-                    },
-                  );
-                },
-              ),
+              child: user == null
+                  ? const Center(child: Text('Please sign in to see your appointments', style: TextStyle(color: kMutedTextColor)))
+                  : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                      stream: FirebaseFirestore.instance
+                          .collection('appointments')
+                          .where('patientId', isEqualTo: user.uid)
+                          .orderBy('createdAt', descending: true)
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+                        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                          return const Center(
+                            child: Text('No upcoming appointments yet', style: TextStyle(color: kMutedTextColor)),
+                          );
+                        }
+                        final docs = snapshot.data!.docs;
+                        final appts = docs.map((d) {
+                          final data = d.data();
+                          final type = (data['type'] as String?) ?? 'message';
+                          final doctor = (data['doctorName'] as String?) ?? 'Doctor';
+                          final time = (data['time'] as String?) ?? '10:00 AM';
+                          final status = (data['status'] as String?) ?? 'Booked';
+                          return _ApptItem(
+                            doctor: doctor,
+                            subtitle: '${_typeLabel(type)}  •  $status',
+                            type: type,
+                            timeRange: _expandOneHour(time),
+                            dateLabel: 'Today - 10 June, 2020',
+                            status: status,
+                          );
+                        }).toList();
+                        return ListView.separated(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: appts.length,
+                          separatorBuilder: (context, index) => const SizedBox(height: 12),
+                          itemBuilder: (context, i) {
+                            final it = appts[i];
+                            return _AppointmentCard(
+                              item: it,
+                              onTap: () {
+                                if (it.type == 'message') {
+                                  Navigator.of(context).pushNamed(AppRoutes.chat, arguments: {'doctor': it.doctor});
+                                } else if (it.type == 'voice') {
+                                  Navigator.of(context).pushNamed(AppRoutes.voiceCall, arguments: {'doctor': it.doctor});
+                                } else if (it.type == 'video') {
+                                  Navigator.of(context).pushNamed(AppRoutes.videoCall, arguments: {'doctor': it.doctor});
+                                } else {
+                                  Navigator.of(context).pushNamed(AppRoutes.appointmentDetail, arguments: it.toArgs());
+                                }
+                              },
+                            );
+                          },
+                        );
+                      },
+                    ),
             )
           else
             Expanded(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../app_style.dart';
 import '../app_routes.dart';
+import '../session.dart';
 
 class PatientDetailsScreen extends StatefulWidget {
   const PatientDetailsScreen({super.key});
@@ -152,6 +153,13 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
               child: ElevatedButton(
                 onPressed: canContinue
                     ? () {
+                        appSession.setPatientDetails(
+                          name: name,
+                          ageRange: ageRange!,
+                          gender: gender!,
+                          phone: phone,
+                          problem: _problem.text.trim(),
+                        );
                         Navigator.of(context).pushNamed(AppRoutes.payment);
                       }
                     : null,

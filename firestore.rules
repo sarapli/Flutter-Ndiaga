@@ -1,0 +1,43 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Profils utilisateurs
+    match /users/{userId} {
+      // Lecture : seulement utilisateurs authentifiés
+      allow read: if request.auth != null;
+
+      // Création / mise à jour / suppression : seulement sur son propre doc
+      allow create, update, delete: if request.auth != null
+                                    && request.auth.uid == userId;
+    }
+
+    // Conversations (métadonnées)
+    match /conversations/{conversationId} {
+      // Création : l'utilisateur doit être dans participants
+      allow create: if request.auth != null
+                    && request.auth.uid in request.resource.data.participants;
+
+      // Lecture / mise à jour / suppression : uniquement si membre de la conversation
+      allow read, update, delete: if request.auth != null
+                                  && request.auth.uid in resource.data.participants;
+    }
+
+    // Messages d'une conversation
+    match /conversations/{conversationId}/messages/{messageId} {
+      // Lecture / écriture : uniquement si membre de la conversation parente
+      allow create, read: if request.auth != null
+                          && request.auth.uid in get(
+                               /databases/$(database)/documents/conversations/$(conversationId)
+                             ).data.participants;
+
+      // On interdit pour l'instant la modification/suppression de messages
+      allow update, delete: if false;
+    }
+
+    // Tout le reste est bloqué par défaut
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

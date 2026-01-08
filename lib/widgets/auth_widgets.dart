@@ -31,12 +31,16 @@ class AuthField extends StatelessWidget {
           children: [
             Icon(prefix, size: 22, color: const Color(0xFF9CA3B7)),
             const SizedBox(width: 12),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-                color: kTextColor,
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: kTextColor,
+                ),
               ),
             ),
           ],

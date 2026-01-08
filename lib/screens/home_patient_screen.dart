@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../app_routes.dart';
 import '../app_style.dart';
@@ -83,14 +84,33 @@ class HomePatientScreen extends StatelessWidget {
               const SizedBox(height: 12),
               SizedBox(
                 height: 88,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: [
-                    _SpecialistChip(label: 'Cardio', count: 27),
-                    _SpecialistChip(label: 'Heart', count: 43),
-                    _SpecialistChip(label: 'Dental', count: 19),
-                    _SpecialistChip(label: 'Physio', count: 7),
-                  ],
+                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: FirebaseFirestore.instance
+                      .collection('specialties')
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.hasError) {
+                      return const Center(child: Text('Failed to load specialties'));
+                    }
+                    final docs = snapshot.data?.docs ?? [];
+                    if (docs.isEmpty) {
+                      return const Center(child: Text('No specialties'));
+                    }
+                    return ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: docs.length,
+                      itemBuilder: (context, index) {
+                        final data = docs[index].data();
+                        final label = (data['shortName'] as String?) ??
+                            (data['name'] as String?) ?? 'Specialist';
+                        final count = (data['doctorsCount'] as num?)?.toInt() ?? 0;
+                        return _SpecialistChip(label: label, count: count);
+                      },
+                    );
+                  },
                 ),
               ),
               const SizedBox(height: 18),
@@ -110,15 +130,40 @@ class HomePatientScreen extends StatelessWidget {
               const SizedBox(height: 12),
               SizedBox(
                 height: 170,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: 5,
-                  separatorBuilder: (context, index) => const SizedBox(width: 12),
-                  itemBuilder: (context, i) {
-                    return _DoctorCard(
-                      name: 'Dr. Mahmud N',
-                      role: 'Heart Sergon',
-                      onTap: () => Navigator.of(context).pushNamed(AppRoutes.doctorsList),
+                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: FirebaseFirestore.instance
+                      .collection('users')
+                      .where('role', isEqualTo: 'doctor')
+                      .limit(10)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.hasError) {
+                      return const Center(child: Text('Failed to load doctors'));
+                    }
+                    final docs = snapshot.data?.docs ?? [];
+                    if (docs.isEmpty) {
+                      return const Center(child: Text('No top doctors'));
+                    }
+                    return ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: docs.length,
+                      separatorBuilder: (context, index) => const SizedBox(width: 12),
+                      itemBuilder: (context, i) {
+                        final doc = docs[i];
+                        final data = doc.data();
+                        final name = (data['name'] as String?) ?? 'Doctor';
+                        final role = (data['specialtyLabel'] as String?) ??
+                            (data['specialtyId'] as String?) ?? 'Specialist';
+                        return _DoctorCard(
+                          name: name,
+                          role: role,
+                          onTap: () => Navigator.of(context)
+                              .pushNamed(AppRoutes.doctorDetail, arguments: doc.id),
+                        );
+                      },
                     );
                   },
                 ),

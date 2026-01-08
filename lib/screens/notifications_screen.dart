@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../app_style.dart';
 import '../session.dart';
@@ -38,25 +40,8 @@ class NotificationsScreen extends StatelessWidget {
       ),
     ];
 
-    final yesterdayItems = [
-      _NotifItem(
-        icon: Icons.notifications_active_outlined,
-        title: 'Serial reminder',
-        text:
-            'Your serial is successfully added in appointment list. Serial number is 25. DoctorPoint will notice you before 15 minutes.',
-      ),
-      _NotifItem(
-        icon: Icons.alarm_outlined,
-        title: 'Appointment alarm',
-        text: 'Your appointment will be start after 15 minutes. Stay with app and take care.',
-      ),
-      _NotifItem(
-        icon: Icons.check_circle_outline,
-        title: 'Appointment confirmed',
-        text: "Your Appointment with $doctor is confirmed. He will $action at ${appt?.time ?? '11:00 AM'} | 10 June, 2020",
-        highlightDoctor: doctor,
-      ),
-    ];
+
+    final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -69,19 +54,51 @@ class NotificationsScreen extends StatelessWidget {
         ),
         title: const Text('Notifications', style: TextStyle(color: kTextColor)),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          const SizedBox(height: 4),
-          const Text('Today  -  10 June, 2020', style: TextStyle(color: kTextColor, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 12),
-          ...todayItems.map((e) => _NotifCard(item: e)),
-          const SizedBox(height: 16),
-          const Text('11 June, 2020', style: TextStyle(color: kTextColor, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 12),
-          ...yesterdayItems.map((e) => _NotifCard(item: e)),
-        ],
-      ),
+      body: user == null
+          ? ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                const SizedBox(height: 12),
+                const Center(child: Text('Please sign in to view notifications', style: TextStyle(color: kMutedTextColor))),
+                const SizedBox(height: 16),
+                ...todayItems.map((e) => _NotifCard(item: e)),
+              ],
+            )
+          : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: FirebaseFirestore.instance
+                  .collection('notifications')
+                  .where('userId', isEqualTo: user.uid)
+                  .orderBy('createdAt', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(
+                    child: Text('No notifications yet', style: TextStyle(color: kMutedTextColor)),
+                  );
+                }
+                final docs = snapshot.data!.docs;
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: docs.length,
+                  itemBuilder: (context, i) {
+                    final data = docs[i].data();
+                    final title = (data['title'] as String?) ?? 'Notification';
+                    final text = (data['text'] as String?) ?? '';
+                    final doctor = (data['doctorName'] as String?) ?? '';
+                    final item = _NotifItem(
+                      icon: Icons.notifications_active_outlined,
+                      title: title,
+                      text: text,
+                      highlightDoctor: doctor.isEmpty ? null : doctor,
+                    );
+                    return _NotifCard(item: item);
+                  },
+                );
+              },
+            ),
     );
   }
 }

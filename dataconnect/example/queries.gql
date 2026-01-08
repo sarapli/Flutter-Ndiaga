@@ -1,0 +1,41 @@
+mutation InsertNewPatient($firstName: String!, $lastName: String!, $dateOfBirth: Date!, $gender: String!, $admissionDate: Timestamp!, $contactNumber: String, $address: String, $bloodGroup: String, $assignedDoctorId: UUID) @auth(level: USER) {
+  patient_insert(data: {firstName: $firstName, lastName: $lastName, dateOfBirth: $dateOfBirth, gender: $gender, admissionDate: $admissionDate, contactNumber: $contactNumber, address: $address, bloodGroup: $bloodGroup, assignedDoctorId: $assignedDoctorId}) {
+    id
+  }
+}
+
+query GetPatientById($patientId: UUID!) @auth(level: USER) {
+  patient(id: $patientId) {
+    firstName
+    lastName
+    dateOfBirth
+    gender
+    admissionDate
+    contactNumber
+    address
+    bloodGroup
+    assignedDoctor {
+      id
+      displayName
+    }
+  }
+}
+
+mutation CreateNewAppointment($patientId: UUID!, $staffId: UUID!, $appointmentDateTime: Timestamp!, $notes: String, $reason: String!, $status: String!) @auth(level: USER) {
+  appointment_insert(data: {patientId: $patientId, staffId: $staffId, appointmentDateTime: $appointmentDateTime, notes: $notes, reason: $reason, status: $status}) {
+    id
+  }
+}
+
+query ListAppointmentsByPatient($patientId: UUID!) @auth(level: USER) {
+  appointments(where: {patientId: {eq: $patientId}}) {
+    id
+    staff {
+      displayName
+    }
+    appointmentDateTime
+    notes
+    reason
+    status
+  }
+}

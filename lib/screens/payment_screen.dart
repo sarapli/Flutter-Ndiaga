@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import '../app_style.dart';
 import '../session.dart';
 import '../app_routes.dart';
@@ -45,7 +48,52 @@ class _PaymentScreenState extends State<PaymentScreen> {
     setState(() => _processing = true);
     await Future<void>.delayed(const Duration(milliseconds: 900));
     setState(() => _processing = false);
+    await _createAppointmentIfNeeded();
     _showCompleted();
+  }
+
+  Future<void> _createAppointmentIfNeeded() async {
+    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    final mode = args?['mode'] as String?;
+    if (mode == 'pro') return;
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final appt = appSession.appointment;
+    final doctorId = appSession.doctorId;
+    final doctorName = appSession.doctorName;
+    if (appt == null || doctorId == null || doctorName == null) return;
+
+    try {
+      final apptRef = await FirebaseFirestore.instance.collection('appointments').add({
+        'patientId': user.uid,
+        'patientName': appSession.patientName ?? user.displayName ?? '',
+        'patientPhone': appSession.patientPhone ?? '',
+        'patientGender': appSession.patientGender,
+        'patientAgeRange': appSession.patientAgeRange,
+        'patientProblem': appSession.patientProblem,
+        'doctorId': doctorId,
+        'doctorName': doctorName,
+        'type': appt.type,
+        'period': appt.period,
+        'time': appt.time,
+        'status': 'booked',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'userId': user.uid,
+        'title': 'Appointment confirmed',
+        'text': 'Your appointment with $doctorName is confirmed at ${appt.time}.',
+        'type': 'appointment',
+        'appointmentId': apptRef.id,
+        'doctorId': doctorId,
+        'doctorName': doctorName,
+        'createdAt': FieldValue.serverTimestamp(),
+        'read': false,
+      });
+    } catch (_) {}
   }
 
   void _showCompleted() {
