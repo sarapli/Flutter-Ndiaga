@@ -18,8 +18,27 @@ import 'screens/appointment_screen.dart';
 import 'screens/patient_details_screen.dart';
 import 'screens/payment_screen.dart';
 import 'screens/notifications_screen.dart';
+import 'screens/search_screen.dart';
+import 'screens/appointments_screen.dart';
+import 'screens/appointment_detail_screen.dart';
+import 'screens/chat_screen.dart';
+import 'screens/voice_call_screen.dart';
+import 'screens/video_call_screen.dart';
+import 'screens/call_ended_screen.dart';
+import 'screens/message_ended_screen.dart';
+import 'screens/write_review_screen.dart';
+import 'screens/incoming_call_screen.dart';
+import 'screens/settings_screen.dart';
+import 'screens/edit_profile_screen.dart';
+import 'screens/pro_member_screen.dart';
+import 'screens/faqs_screen.dart';
+import 'screens/help_screen.dart';
+import 'screens/invite_friend_screen.dart';
+import 'screens/favourite_doctors_screen.dart';
+import 'services/firebase_initializer.dart';
 
-void main() {
+void main() async {
+  await FirebaseInitializer.init();
   runApp(const MyApp());
 }
 
@@ -49,6 +68,16 @@ class MyApp extends StatelessWidget {
         // tested with just a hot reload.
         colorScheme: ColorScheme.fromSeed(seedColor: kPrimaryColor),
         useMaterial3: true,
+        pageTransitionsTheme: const PageTransitionsTheme(
+          builders: <TargetPlatform, PageTransitionsBuilder>{
+            TargetPlatform.android: ZoomPageTransitionsBuilder(),
+            TargetPlatform.iOS: ZoomPageTransitionsBuilder(),
+            TargetPlatform.macOS: FadeUpwardsPageTransitionsBuilder(),
+            TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
+            TargetPlatform.linux: FadeUpwardsPageTransitionsBuilder(),
+            TargetPlatform.fuchsia: ZoomPageTransitionsBuilder(),
+          },
+        ),
       ),
       debugShowCheckedModeBanner: false,
       initialRoute: AppRoutes.splash,
@@ -73,6 +102,23 @@ class MyApp extends StatelessWidget {
         AppRoutes.patientDetails: (_) => const PatientDetailsScreen(),
         AppRoutes.payment: (_) => const PaymentScreen(),
         AppRoutes.notifications: (_) => const NotificationsScreen(),
+        AppRoutes.search: (_) => const SearchScreen(),
+        AppRoutes.appointments: (_) => const AppointmentsScreen(),
+        AppRoutes.appointmentDetail: (_) => const AppointmentDetailScreen(),
+        AppRoutes.chat: (_) => const ChatScreen(),
+        AppRoutes.voiceCall: (_) => const VoiceCallScreen(),
+        AppRoutes.videoCall: (_) => const VideoCallScreen(),
+        AppRoutes.callEnded: (_) => const CallEndedScreen(),
+        AppRoutes.messageEnded: (_) => const MessageEndedScreen(),
+        AppRoutes.writeReview: (_) => const WriteReviewScreen(),
+        AppRoutes.incomingCall: (_) => const IncomingCallScreen(),
+        AppRoutes.settings: (_) => const SettingsScreen(),
+        AppRoutes.editProfile: (_) => const EditProfileScreen(),
+        AppRoutes.proMember: (_) => const ProMemberScreen(),
+        AppRoutes.faqs: (_) => const FaqsScreen(),
+        AppRoutes.help: (_) => const HelpScreen(),
+        AppRoutes.inviteFriend: (_) => const InviteFriendScreen(),
+        AppRoutes.favouriteDoctors: (_) => const FavouriteDoctorsScreen(),
       },
     );
   }

@@ -29,13 +29,35 @@ class HomePatientScreen extends StatelessWidget {
         onTap: (index) {
           if (index == 1) {
             Navigator.of(context).pushNamed(AppRoutes.notifications);
+          } else if (index == 2) {
+            Navigator.of(context).pushNamed(AppRoutes.search);
+          } else if (index == 3) {
+            Navigator.of(context).pushNamed(AppRoutes.appointments);
+          } else if (index == 4) {
+            Navigator.of(context).pushNamed(AppRoutes.settings);
           }
         },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.notifications_none), label: 'Alerts'),
-          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'Chats'),
-          BottomNavigationBarItem(icon: Icon(Icons.grid_view_outlined), label: 'More'),
+        items: [
+          BottomNavigationBarItem(
+            icon: Image.asset('asset/Logo_maquette.png', height: 28, width: 28),
+            activeIcon: Container(
+              width: 36,
+              height: 36,
+              decoration: const BoxDecoration(
+                color: Color(0xFFE7F3F1),
+                shape: BoxShape.circle,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(6),
+                child: Image.asset('asset/Logo_maquette.png', height: 24, width: 24),
+              ),
+            ),
+            label: '',
+          ),
+          const BottomNavigationBarItem(icon: Icon(Icons.notifications_none), label: 'Alerts'),
+          const BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
+          const BottomNavigationBarItem(icon: Icon(Icons.list_alt_outlined), label: 'Appts'),
+          const BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), label: 'Settings'),
         ],
       ),
       body: SafeArea(

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../app_routes.dart';
 import '../app_style.dart';
 import '../widgets/auth_widgets.dart';
+import '../services/auth_service.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({super.key});
@@ -14,6 +15,46 @@ class ResetPasswordScreen extends StatefulWidget {
 class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   bool _obscure1 = true;
   bool _obscure2 = true;
+  final _p1 = TextEditingController();
+  final _p2 = TextEditingController();
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    _p1.dispose();
+    _p2.dispose();
+    super.dispose();
+  }
+
+  Future<void> _doReset() async {
+    if (_loading) return;
+    final p1 = _p1.text;
+    final p2 = _p2.text;
+    if (p1.isEmpty || p2.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill both fields')));
+      return;
+    }
+    if (p1.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password must be at least 6 characters')));
+      return;
+    }
+    if (p1 != p2) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Passwords do not match')));
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      await AuthService.instance.updatePassword(p1);
+      await AuthService.instance.signOut();
+      if (!mounted) return;
+      Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.signIn, (r) => false);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Reset failed: $e')));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,6 +116,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                 color: const Color(0xFF9CA3B7),
                               ),
                             ),
+                            controller: _p1,
                           ),
                           const SizedBox(height: 20),
                           AuthField(
@@ -92,16 +134,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                 color: const Color(0xFF9CA3B7),
                               ),
                             ),
+                            controller: _p2,
                           ),
                           const Spacer(),
                           SizedBox(
                             height: 56,
                             child: ElevatedButton(
-                              onPressed: () => Navigator.of(context)
-                                  .pushNamedAndRemoveUntil(
-                                AppRoutes.signIn,
-                                (r) => false,
-                              ),
+                              onPressed: _loading ? null : _doReset,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: kPrimaryColor,
                                 foregroundColor: Colors.white,
@@ -109,9 +148,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              child: const Text(
-                                'Reset password',
-                                style: TextStyle(
+                              child: Text(
+                                _loading ? 'Please wait...' : 'Reset password',
+                                style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
                                 ),

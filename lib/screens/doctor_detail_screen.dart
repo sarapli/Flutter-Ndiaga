@@ -25,11 +25,14 @@ class DoctorDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              height: 160,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE9EBF2),
-                borderRadius: BorderRadius.circular(16),
+            Hero(
+              tag: 'doctor-hero',
+              child: Container(
+                height: 160,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE9EBF2),
+                  borderRadius: BorderRadius.circular(16),
+                ),
               ),
             ),
             const SizedBox(height: 16),

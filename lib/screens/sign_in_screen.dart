@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../app_routes.dart';
 import '../app_style.dart';
 import '../widgets/auth_widgets.dart';
+import '../services/auth_service.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -13,6 +14,61 @@ class SignInScreen extends StatefulWidget {
 
 class _SignInScreenState extends State<SignInScreen> {
   bool _obscure = true;
+  final _email = TextEditingController();
+  final _password = TextEditingController();
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    _email.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
+  Future<void> _doSignIn() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    try {
+      await AuthService.instance.signInWithEmail(_email.text.trim(), _password.text);
+      if (!mounted) return;
+      Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.homePatient, (r) => false);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Sign in failed: $e')));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _doGoogle() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    try {
+      await AuthService.instance.signInWithGoogle();
+      if (!mounted) return;
+      Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.homePatient, (r) => false);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Google sign-in failed: $e')));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _doFacebook() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    try {
+      await AuthService.instance.signInWithFacebook();
+      if (!mounted) return;
+      Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.homePatient, (r) => false);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Facebook sign-in failed: $e')));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,11 +91,12 @@ class _SignInScreenState extends State<SignInScreen> {
                     ),
                   ),
                   const SizedBox(height: 36),
-                  const AuthField(
+                  AuthField(
                     label: 'Email',
-                    hint: 'manikstk@gmail.com',
+                    hint: 'you@example.com',
                     prefix: Icons.mail_outline,
                     keyboardType: TextInputType.emailAddress,
+                    controller: _email,
                   ),
                   const SizedBox(height: 20),
                   AuthField(
@@ -56,13 +113,13 @@ class _SignInScreenState extends State<SignInScreen> {
                         color: const Color(0xFF9CA3B7),
                       ),
                     ),
+                    controller: _password,
                   ),
                   const SizedBox(height: 28),
                   SizedBox(
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: () => Navigator.of(context)
-                          .pushNamedAndRemoveUntil(AppRoutes.homePatient, (r) => false),
+                      onPressed: _loading ? null : _doSignIn,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: kPrimaryColor,
                         foregroundColor: Colors.white,
@@ -70,9 +127,9 @@ class _SignInScreenState extends State<SignInScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text(
-                        'Sign In',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      child: Text(
+                        _loading ? 'Please wait...' : 'Sign In',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                       ),
                     ),
                   ),
@@ -96,7 +153,11 @@ class _SignInScreenState extends State<SignInScreen> {
                   const SizedBox(height: 28),
                   const OrDivider(label: 'Or Sign in\nwith'),
                   const SizedBox(height: 18),
-                  const SocialRow(),
+                  SocialRow(
+                    onGoogle: _doGoogle,
+                    onFacebook: _doFacebook,
+                    onInstagram: _doFacebook, // redirect Instagram -> Facebook
+                  ),
                   const SizedBox(height: 28),
                   Center(
                     child: BottomQuestionLink(

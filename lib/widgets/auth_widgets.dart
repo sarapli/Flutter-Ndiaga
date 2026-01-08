@@ -9,6 +9,7 @@ class AuthField extends StatelessWidget {
   final bool obscureText;
   final Widget? suffix;
   final TextInputType? keyboardType;
+  final TextEditingController? controller;
 
   const AuthField({
     super.key,
@@ -18,6 +19,7 @@ class AuthField extends StatelessWidget {
     this.obscureText = false,
     this.suffix,
     this.keyboardType,
+    this.controller,
   });
 
   @override
@@ -41,6 +43,7 @@ class AuthField extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         TextField(
+          controller: controller,
           keyboardType: keyboardType,
           obscureText: obscureText,
           decoration: InputDecoration(
@@ -62,8 +65,9 @@ class AuthField extends StatelessWidget {
 
 class PhoneField extends StatelessWidget {
   final String label;
+  final TextEditingController? controller;
 
-  const PhoneField({super.key, this.label = 'Phone number'});
+  const PhoneField({super.key, this.label = 'Phone number', this.controller});
 
   @override
   Widget build(BuildContext context) {
@@ -104,6 +108,7 @@ class PhoneField extends StatelessWidget {
             const SizedBox(width: 16),
             Expanded(
               child: TextField(
+                controller: controller,
                 keyboardType: TextInputType.phone,
                 decoration: const InputDecoration(
                   hintText: 'Enter your phone number',
@@ -148,20 +153,25 @@ class OrDivider extends StatelessWidget {
 }
 
 class SocialRow extends StatelessWidget {
-  const SocialRow({super.key});
+  final VoidCallback? onFacebook;
+  final VoidCallback? onGoogle;
+  final VoidCallback? onInstagram;
+  const SocialRow({super.key, this.onFacebook, this.onGoogle, this.onInstagram});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.start,
-      children: const [
+      children: [
         SocialBox(
-          background: Color(0xFF2F5A9B),
-          child: Icon(Icons.facebook, color: Colors.white),
+          background: const Color(0xFF2F5A9B),
+          onTap: onFacebook,
+          child: const Icon(Icons.facebook, color: Colors.white),
         ),
-        SizedBox(width: 16),
+        const SizedBox(width: 16),
         SocialBox(
-          child: Text(
+          onTap: onGoogle,
+          child: const Text(
             'G',
             style: TextStyle(
               fontSize: 18,
@@ -170,13 +180,14 @@ class SocialRow extends StatelessWidget {
             ),
           ),
         ),
-        SizedBox(width: 16),
+        const SizedBox(width: 16),
         SocialBox(
-          child: Icon(Icons.alternate_email, color: Color(0xFF1DA1F2)),
+          child: const Icon(Icons.alternate_email, color: Color(0xFF1DA1F2)),
         ),
-        SizedBox(width: 16),
+        const SizedBox(width: 16),
         SocialBox(
-          child: Icon(Icons.camera_alt_outlined, color: Color(0xFFE1306C)),
+          onTap: onInstagram ?? onFacebook,
+          child: const Icon(Icons.camera_alt_outlined, color: Color(0xFFE1306C)),
         ),
       ],
     );
@@ -186,21 +197,25 @@ class SocialRow extends StatelessWidget {
 class SocialBox extends StatelessWidget {
   final Widget child;
   final Color? background;
+  final VoidCallback? onTap;
 
-  const SocialBox({super.key, required this.child, this.background});
+  const SocialBox({super.key, required this.child, this.background, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 56,
-      height: 56,
-      decoration: BoxDecoration(
-        color: background ?? Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: background == null ? Border.all(color: kDividerColor) : null,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Ink(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          color: background ?? Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: background == null ? Border.all(color: kDividerColor) : null,
+        ),
+        child: Center(child: child),
       ),
-      alignment: Alignment.center,
-      child: child,
     );
   }
 }
@@ -297,7 +312,8 @@ class OtpBox extends StatelessWidget {
 }
 
 class Keypad extends StatelessWidget {
-  const Keypad({super.key});
+  final ValueChanged<String>? onKey;
+  const Keypad({super.key, this.onKey});
 
   @override
   Widget build(BuildContext context) {
@@ -321,18 +337,42 @@ class Keypad extends StatelessWidget {
         ),
         itemBuilder: (context, index) {
           final label = keys[index];
-          return Center(
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontSize: 30,
-                fontWeight: FontWeight.w500,
-                color: kTextColor,
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: label.isEmpty ? null : () => onKey?.call(label),
+              child: Center(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w500,
+                    color: kTextColor,
+                  ),
+                ),
               ),
             ),
           );
         },
       ),
+    );
+  }
+}
+
+class OtpDisplay extends StatelessWidget {
+  final String code;
+  final int length;
+  const OtpDisplay({super.key, required this.code, this.length = 6});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: List.generate(length, (i) {
+        final ch = i < code.length ? code[i] : '';
+        return OtpBox(text: ch, active: i == code.length);
+      }),
     );
   }
 }

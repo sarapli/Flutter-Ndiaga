@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../app_style.dart';
 import '../session.dart';
+import '../app_routes.dart';
 
 class PaymentScreen extends StatefulWidget {
   const PaymentScreen({super.key});
@@ -48,20 +49,24 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }
 
   void _showCompleted() {
+    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    final mode = args?['mode'] as String?; // 'pro' for membership payment
     final type = appSession.appointment?.type ?? 'message';
     final doctor = appSession.doctorName ?? 'your doctor';
-    final icon = type == 'voice'
-        ? Icons.call
-        : type == 'video'
-            ? Icons.videocam_outlined
-            : Icons.message_outlined;
+    final icon = mode == 'pro'
+        ? Icons.workspace_premium_outlined
+        : type == 'voice'
+            ? Icons.call
+            : type == 'video'
+                ? Icons.videocam_outlined
+                : Icons.message_outlined;
 
     showDialog(
       context: context,
-      barrierDismissible: type != 'message',
+      barrierDismissible: mode == 'pro' ? false : type != 'message',
       barrierColor: const Color(0xCC8E95A6),
       builder: (context) {
-        if (type == 'message') {
+        if (mode != 'pro' && type == 'message') {
           Timer(const Duration(seconds: 2), () {
             if (Navigator.of(context).canPop()) Navigator.of(context).pop();
           });
@@ -70,47 +75,62 @@ class _PaymentScreenState extends State<PaymentScreen> {
           child: Container(
             width: 320,
             margin: const EdgeInsets.symmetric(horizontal: 24),
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.8,
+            ),
             padding: const EdgeInsets.all(22),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(22),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircleAvatar(
-                  radius: 36,
-                  backgroundColor: const Color(0xFFF0F2F9),
-                  child: Icon(icon, color: kTextColor, size: 30),
-                ),
-                const SizedBox(height: 16),
-                const Text('Completed', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: kTextColor)),
-                const SizedBox(height: 8),
-                Text(
-                  'Your appointment booking successfully completed. $doctor will ${type == 'voice' ? 'Voice Call' : type == 'video' ? 'Video Call' : 'Message'} you soon.',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: kMutedTextColor, height: 1.4),
-                ),
-                if (type != 'message') ...[
-                  const SizedBox(height: 18),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        Navigator.of(context).pushNamedAndRemoveUntil('/home-patient', (r) => false);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: kPrimaryColor,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: const Text('Go to dashboard'),
-                    ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircleAvatar(
+                    radius: 36,
+                    backgroundColor: const Color(0xFFF0F2F9),
+                    child: Icon(icon, color: kTextColor, size: 30),
                   ),
+                  const SizedBox(height: 16),
+                  Text(
+                    mode == 'pro' ? 'Upgraded' : 'Completed',
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: kTextColor),
+                  ),
+                  const SizedBox(height: 8),
+                  if (mode == 'pro')
+                    const Text(
+                      'Your DoctorPoint Pro Membership activated. Enjoy your Pro Membership and get unlimited consultations.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: kMutedTextColor, height: 1.4),
+                    )
+                  else
+                    Text(
+                      'Your appointment booking successfully completed. $doctor will ${type == 'voice' ? 'Voice Call' : type == 'video' ? 'Video Call' : 'Message'} you soon.',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: kMutedTextColor, height: 1.4),
+                    ),
+                  if (mode == 'pro' || type != 'message') ...[
+                    const SizedBox(height: 18),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.homePatient, (r) => false);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: kPrimaryColor,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('Go to dashboard'),
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         );

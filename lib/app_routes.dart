@@ -21,4 +21,21 @@ class AppRoutes {
   static const String patientDetails = '/patient-details';
   static const String payment = '/payment';
   static const String notifications = '/notifications';
+  static const String search = '/search';
+  static const String appointments = '/appointments';
+  static const String appointmentDetail = '/appointment-detail';
+  static const String chat = '/chat';
+  static const String voiceCall = '/voice-call';
+  static const String videoCall = '/video-call';
+  static const String callEnded = '/call-ended';
+  static const String messageEnded = '/message-ended';
+  static const String writeReview = '/write-review';
+  static const String incomingCall = '/incoming-call';
+  static const String settings = '/settings';
+  static const String editProfile = '/edit-profile';
+  static const String proMember = '/pro-member';
+  static const String faqs = '/faqs';
+  static const String help = '/help';
+  static const String inviteFriend = '/invite-friend';
+  static const String favouriteDoctors = '/favourite-doctors';
 }

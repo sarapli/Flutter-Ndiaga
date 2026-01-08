@@ -1,0 +1,304 @@
+import 'package:flutter/material.dart';
+
+import '../app_style.dart';
+import '../app_routes.dart';
+import '../session.dart';
+
+class AppointmentsScreen extends StatefulWidget {
+  const AppointmentsScreen({super.key});
+
+  @override
+  State<AppointmentsScreen> createState() => _AppointmentsScreenState();
+}
+
+class _AppointmentsScreenState extends State<AppointmentsScreen> {
+  bool upcoming = true;
+
+  List<_ApptItem> get _baseUpcoming => const [
+        _ApptItem(
+          doctor: 'Dr. Brycen Bradford',
+          subtitle: 'Voice Call  •  Accepted',
+          type: 'voice',
+          timeRange: '09:00 AM - 10:00 AM',
+          dateLabel: 'Today - 10 June, 2020',
+          status: 'Accepted',
+        ),
+        _ApptItem(
+          doctor: 'Dr. Mahmud Nik Hasan',
+          subtitle: 'Messaging  •  In Progress',
+          type: 'message',
+          timeRange: '11:00 AM - 11:30 AM',
+          dateLabel: 'Today - 10 June, 2020',
+          status: 'In Progress',
+        ),
+        _ApptItem(
+          doctor: 'Dr. Tierra Riley',
+          subtitle: 'Video Call  •  Decline',
+          type: 'video',
+          timeRange: '09:00 AM - 10:00 AM',
+          dateLabel: 'Today - 10 June, 2020',
+          status: 'Decline',
+        ),
+      ];
+
+  List<_ApptItem> _buildUpcoming() {
+    final list = <_ApptItem>[];
+    // Inject dynamic item from last booking (prototype)
+    final a = appSession.appointment;
+    final doctor = appSession.doctorName;
+    if (a != null && doctor != null) {
+      list.add(_ApptItem(
+        doctor: doctor,
+        subtitle: '${_typeLabel(a.type)}  •  In Progress',
+        type: a.type,
+        timeRange: _expandOneHour(a.time),
+        dateLabel: 'Today - 10 June, 2020',
+        status: 'In Progress',
+      ));
+    }
+    list.addAll(_baseUpcoming);
+    return list;
+  }
+
+  static String _expandOneHour(String start) {
+    // very naive: just return "start - +1h" as mock
+    return '$start - 11:00 AM';
+  }
+
+  static String _typeLabel(String t) {
+    switch (t) {
+      case 'voice':
+        return 'Voice Call';
+      case 'video':
+        return 'Video Call';
+      default:
+        return 'Messaging';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final items = upcoming ? _buildUpcoming() : const <_ApptItem>[];
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('My appointments', style: TextStyle(color: kTextColor)),
+        actions: [
+          IconButton(
+            onPressed: () => Navigator.of(context).pushNamed(AppRoutes.incomingCall),
+            icon: const Icon(Icons.call, color: kTextColor),
+            tooltip: 'Simulate incoming call',
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _SegmentButton(
+                    label: 'Upcoming',
+                    selected: upcoming,
+                    onTap: () => setState(() => upcoming = true),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _SegmentButton(
+                    label: 'Past',
+                    selected: !upcoming,
+                    onTap: () => setState(() => upcoming = false),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (upcoming)
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.all(16),
+                itemCount: items.length,
+                separatorBuilder: (context, index) => const SizedBox(height: 12),
+                itemBuilder: (context, i) {
+                  final it = items[i];
+                  return _AppointmentCard(
+                    item: it,
+                    onTap: () {
+                      if (it.type == 'message') {
+                        Navigator.of(context).pushNamed(AppRoutes.chat, arguments: {'doctor': it.doctor});
+                      } else if (it.type == 'voice') {
+                        Navigator.of(context).pushNamed(AppRoutes.voiceCall, arguments: {'doctor': it.doctor});
+                      } else if (it.type == 'video') {
+                        Navigator.of(context).pushNamed(AppRoutes.videoCall, arguments: {'doctor': it.doctor});
+                      } else {
+                        Navigator.of(context).pushNamed(AppRoutes.appointmentDetail, arguments: it.toArgs());
+                      }
+                    },
+                  );
+                },
+              ),
+            )
+          else
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(Icons.feed_outlined, size: 96, color: Color(0xFFE9EBF2)),
+                    SizedBox(height: 10),
+                    Text('You have no appointment in past', style: TextStyle(color: kMutedTextColor)),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+      bottomNavigationBar: const _BottomBar(index: 3),
+    );
+  }
+}
+
+class _SegmentButton extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _SegmentButton({required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 44,
+      child: ElevatedButton(
+        onPressed: onTap,
+        style: ElevatedButton.styleFrom(
+          elevation: 0,
+          backgroundColor: selected ? kPrimaryColor : Colors.white,
+          foregroundColor: selected ? Colors.white : kTextColor,
+          side: const BorderSide(color: kDividerColor),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        child: Text(label),
+      ),
+    );
+  }
+}
+
+class _ApptItem {
+  final String doctor;
+  final String subtitle; // Voice Call • Accepted
+  final String type; // voice | message | video
+  final String timeRange;
+  final String dateLabel;
+  final String status; // Accepted | In Progress | Decline
+
+  const _ApptItem({
+    required this.doctor,
+    required this.subtitle,
+    required this.type,
+    required this.timeRange,
+    required this.dateLabel,
+    required this.status,
+  });
+
+  Map<String, dynamic> toArgs() => {
+        'doctor': doctor,
+        'type': type,
+        'timeRange': timeRange,
+        'date': dateLabel,
+        'status': status,
+      };
+}
+
+class _AppointmentCard extends StatelessWidget {
+  final _ApptItem item;
+  final VoidCallback onTap;
+  const _AppointmentCard({required this.item, required this.onTap});
+
+  IconData get _icon => item.type == 'voice'
+      ? Icons.call
+      : item.type == 'video'
+          ? Icons.videocam_outlined
+          : Icons.message_outlined;
+
+  Color get _typeColor => item.type == 'message'
+      ? const Color(0xFFFF9130)
+      : const Color(0xFF6F6F86);
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: const [BoxShadow(color: Color(0x11000000), blurRadius: 12, offset: Offset(0,6))]),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: const ColoredBox(color: Color(0xFFE9EBF2), child: SizedBox(width: 66, height: 66)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(children: [Icon(_icon, color: _typeColor, size: 16), const SizedBox(width: 6), Text(item.subtitle, style: const TextStyle(fontSize: 12, color: kMutedTextColor))]),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(item.doctor, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: kTextColor)),
+                  const SizedBox(height: 4),
+                  Text(item.timeRange, style: const TextStyle(fontSize: 12, color: kMutedTextColor)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BottomBar extends StatelessWidget {
+  final int index;
+  const _BottomBar({required this.index});
+
+  @override
+  Widget build(BuildContext context) {
+    return BottomNavigationBar(
+      type: BottomNavigationBarType.fixed,
+      selectedItemColor: kPrimaryColor,
+      unselectedItemColor: const Color(0xFFB6BACC),
+      currentIndex: index,
+      onTap: (i) {
+        if (i == 0) {
+          Navigator.of(context).pushReplacementNamed(AppRoutes.homePatient);
+        } else if (i == 1) {
+          Navigator.of(context).pushReplacementNamed(AppRoutes.notifications);
+        } else if (i == 2) {
+          Navigator.of(context).pushReplacementNamed(AppRoutes.search);
+        } else if (i == 3) {
+        } else if (i == 4) {
+          Navigator.of(context).pushReplacementNamed(AppRoutes.settings);
+        }
+      },
+      items: const [
+        BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Home'),
+        BottomNavigationBarItem(icon: Icon(Icons.notifications_none), label: 'Alerts'),
+        BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
+        BottomNavigationBarItem(icon: Icon(Icons.list_alt_outlined), label: 'Appts'),
+        BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), label: 'Settings'),
+      ],
+    );
+  }
+}
