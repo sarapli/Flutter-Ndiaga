@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../app_style.dart';
+import '../app_routes.dart';
+import '../services/storage_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -17,6 +21,34 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   String _gender = 'Male';
   DateTime _dob = DateTime(1995, 9, 15);
   bool _obscure = true;
+  String? _photoUrl;
+  String? _role;
+  bool _loading = false;
+  String _phoneCode = '+254';
+  String _countryCode = 'KE';
+
+  static const List<_Country> _countries = [
+    _Country('SN', 'Senegal', '+221', '🇸🇳'),
+    _Country('CI', 'Côte d\'Ivoire', '+225', '🇨🇮'),
+    _Country('ML', 'Mali', '+223', '🇲🇱'),
+    _Country('GN', 'Guinée', '+224', '🇬🇳'),
+    _Country('FR', 'France', '+33', '🇫🇷'),
+    _Country('GB', 'United Kingdom', '+44', '🇬🇧'),
+    _Country('US', 'United States', '+1', '🇺🇸'),
+    _Country('NL', 'Netherlands', '+31', '🇳🇱'),
+    _Country('BD', 'Bangladesh', '+880', '🇧🇩'),
+    _Country('MA', 'Maroc', '+212', '🇲🇦'),
+    _Country('DZ', 'Algérie', '+213', '🇩🇿'),
+    _Country('TN', 'Tunisie', '+216', '🇹🇳'),
+    _Country('NG', 'Nigeria', '+234', '🇳🇬'),
+    _Country('KE', 'Kenya', '+254', '🇰🇪'),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
 
   @override
   void dispose() {
@@ -24,6 +56,39 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _phone.dispose();
     _password.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
+    final snap = await ref.get();
+    final data = snap.data();
+    if (data == null) return;
+    setState(() {
+      _name.text = (data['name'] as String?) ?? _name.text;
+      _phone.text = (data['phone'] as String?) ?? _phone.text;
+      _gender = (data['gender'] as String?) ?? _gender;
+      final ts = data['dob'];
+      if (ts is Timestamp) _dob = ts.toDate();
+      _photoUrl = (data['photoUrl'] as String?);
+      _role = (data['role'] as String?);
+      _phoneCode = (data['phoneCode'] as String?) ?? _phoneCode;
+      _countryCode = (data['countryCode'] as String?) ?? _countryCode;
+    });
+  }
+
+  Future<void> _pickPhoto() async {
+    final url = await StorageService.instance.pickAndUploadImage();
+    if (url == null) return;
+    setState(() => _photoUrl = url);
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'photoUrl': url,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
   }
 
   Future<void> _pickDob() async {
@@ -64,7 +129,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(24),
-                      child: const ColoredBox(color: Color(0xFFE9EBF2), child: SizedBox(width: 120, height: 120)),
+                      child: SizedBox(
+                        width: 120,
+                        height: 120,
+                        child: _photoUrl == null
+                            ? const ColoredBox(color: Color(0xFFE9EBF2))
+                            : Image.network(_photoUrl!, fit: BoxFit.cover),
+                      ),
                     ),
                     Positioned(
                       bottom: -4,
@@ -73,7 +144,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         radius: 22,
                         backgroundColor: kPrimaryColor,
                         child: IconButton(
-                          onPressed: () {},
+                          onPressed: _pickPhoto,
                           icon: const Icon(Icons.camera_alt, color: Colors.white),
                         ),
                       ),
@@ -93,13 +164,40 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF7F8FB),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: kDividerColor),
                     ),
-                    child: const Text('+254'),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _phoneCode,
+                        isDense: true,
+                        onChanged: (v) {
+                          if (v == null) return;
+                          final c = _countries.firstWhere((e) => e.dial == v);
+                          setState(() {
+                            _phoneCode = c.dial;
+                            _countryCode = c.code;
+                          });
+                        },
+                        items: [
+                          for (final c in _countries)
+                            DropdownMenuItem(
+                              value: c.dial,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(c.flag, style: const TextStyle(fontSize: 16)),
+                                  const SizedBox(width: 6),
+                                  Text(c.dial, style: const TextStyle(color: kTextColor)),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -165,18 +263,46 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               SizedBox(
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: () {
-                    if (_formKey.currentState?.validate() ?? false) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile saved (prototype).')));
-                      Navigator.of(context).pop();
-                    }
-                  },
+                  onPressed: _loading
+                      ? null
+                      : () async {
+                          if (!(_formKey.currentState?.validate() ?? false)) return;
+                          final nav = Navigator.of(context);
+                          final routeArgs = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+                          final firstTime = routeArgs?['firstTime'] == true;
+                          final user = FirebaseAuth.instance.currentUser;
+                          if (user == null) return;
+                          setState(() => _loading = true);
+                          try {
+                            await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+                              'name': _name.text.trim(),
+                              'phone': _phone.text.trim(),
+                              'phoneCode': _phoneCode,
+                              'countryCode': _countryCode,
+                              'gender': _gender,
+                              'dob': _dob,
+                              'photoUrl': _photoUrl,
+                              'updatedAt': FieldValue.serverTimestamp(),
+                            }, SetOptions(merge: true));
+                          } finally {
+                            if (mounted) setState(() => _loading = false);
+                          }
+                          if (firstTime) {
+                            final role = _role ?? 'patient';
+                            nav.pushNamedAndRemoveUntil(
+                              role == 'doctor' ? AppRoutes.homeDoctor : AppRoutes.homePatient,
+                              (r) => false,
+                            );
+                          } else {
+                            nav.pop();
+                          }
+                        },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kPrimaryColor,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: const Text('Save'),
+                  child: Text(_loading ? 'Saving...' : 'Save'),
                 ),
               ),
             ],
@@ -212,4 +338,12 @@ class _Labeled extends StatelessWidget {
       child: Text(text, style: const TextStyle(color: kTextColor, fontWeight: FontWeight.w600)),
     );
   }
+}
+
+class _Country {
+  final String code;
+  final String name;
+  final String dial;
+  final String flag;
+  const _Country(this.code, this.name, this.dial, this.flag);
 }

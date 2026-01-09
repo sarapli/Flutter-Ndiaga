@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../app_style.dart';
 import '../app_routes.dart';
 import '../services/auth_service.dart';
+import '../session.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -13,14 +17,51 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _notif = false;
-  String _language = 'English';
+  String _language = 'English ( United States )';
+
+  @override
+  void initState() {
+    super.initState();
+    final code = appSession.locale?.languageCode;
+    _language = _labelFor(code);
+  }
 
   void _openLanguage() async {
     final selected = await showDialog<String>(
       context: context,
       builder: (ctx) => _LanguageDialog(current: _language),
     );
-    if (selected != null) setState(() => _language = selected);
+    if (selected != null) {
+      await _applyLanguage(selected);
+    }
+  }
+
+  Future<void> _applyLanguage(String label) async {
+    final prefs = await SharedPreferences.getInstance();
+    final code = _codeFor(label);
+    await prefs.setString('locale', code);
+    appSession.setLocale(Locale(code));
+    if (mounted) setState(() => _language = label);
+  }
+
+  String _codeFor(String label) {
+    if (label.startsWith('Francais')) return 'fr';
+    if (label.startsWith('Bangla')) return 'bn';
+    if (label.startsWith('Nederlands')) return 'nl';
+    return 'en';
+  }
+
+  String _labelFor(String? code) {
+    switch (code) {
+      case 'fr':
+        return 'Francais ( Franch )';
+      case 'bn':
+        return 'Bangla ( Bangladesh )';
+      case 'nl':
+        return 'Nederlands ( Nedarlend )';
+      default:
+        return 'English ( United States )';
+    }
   }
 
   @override
@@ -35,7 +76,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
-          _HeaderCard(onEdit: () => Navigator.of(context).pushNamed(AppRoutes.editProfile)),
+          Builder(
+            builder: (context) {
+              final user = FirebaseAuth.instance.currentUser;
+              if (user == null) {
+                return _HeaderCard(
+                  onEdit: () => Navigator.of(context).pushNamed(AppRoutes.editProfile),
+                  name: 'Guest',
+                  photoUrl: null,
+                );
+              }
+              return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+                builder: (context, snapshot) {
+                  final name = snapshot.data?.data()?['name'] as String?;
+                  final photoUrl = snapshot.data?.data()?['photoUrl'] as String?;
+                  return _HeaderCard(
+                    onEdit: () => Navigator.of(context).pushNamed(AppRoutes.editProfile),
+                    name: name ?? 'Hello',
+                    photoUrl: photoUrl,
+                  );
+                },
+              );
+            },
+          ),
           const SizedBox(height: 16),
           _SettingsTile(
             leading: Icons.workspace_premium_outlined,
@@ -116,7 +180,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
 class _HeaderCard extends StatelessWidget {
   final VoidCallback onEdit;
-  const _HeaderCard({required this.onEdit});
+  final String? name;
+  final String? photoUrl;
+  const _HeaderCard({required this.onEdit, this.name, this.photoUrl});
 
   @override
   Widget build(BuildContext context) {
@@ -130,16 +196,25 @@ class _HeaderCard extends StatelessWidget {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: const ColoredBox(color: Color(0xFFE9EBF2), child: SizedBox(width: 64, height: 64)),
+            child: SizedBox(
+              width: 64,
+              height: 64,
+              child: (photoUrl == null || photoUrl!.isEmpty)
+                  ? const ColoredBox(color: Color(0xFFE9EBF2))
+                  : Image.network(photoUrl!, fit: BoxFit.cover),
+            ),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Hello!', style: TextStyle(color: Colors.white70)),
-                SizedBox(height: 2),
-                Text('Mahmudul Hasan\nManik', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+                const Text('Hello!', style: TextStyle(color: Colors.white70)),
+                const SizedBox(height: 2),
+                Text(
+                  (name == null || name!.isEmpty) ? 'User' : name!,
+                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+                ),
               ],
             ),
           ),

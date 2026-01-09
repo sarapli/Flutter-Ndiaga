@@ -31,6 +31,34 @@ class StorageService {
     }
   }
 
+  Future<String?> pickAndUploadAudio() async {
+    final result = await FilePicker.platform.pickFiles(type: FileType.audio, withData: kIsWeb);
+    if (result == null) return null;
+    final uid = _auth.currentUser?.uid ?? 'anonymous';
+    final ext = result.files.single.extension ?? 'm4a';
+    final name = _uuid.v4();
+    final path = 'audio/$uid/$name.$ext';
+    if (kIsWeb) {
+      final bytes = result.files.single.bytes!;
+      return _uploadBytes(bytes, path, contentType: 'audio/$ext');
+    } else {
+      final filePath = result.files.single.path!;
+      return _uploadFile(File(filePath), path, contentType: 'audio/$ext');
+    }
+  }
+
+  Future<String?> uploadAudioFile(File file, {String ext = 'm4a'}) async {
+    final uid = _auth.currentUser?.uid ?? 'anonymous';
+    final name = _uuid.v4();
+    final path = 'audio/$uid/$name.$ext';
+    return _uploadFile(file, path, contentType: 'audio/$ext');
+  }
+  
+  Future<String?> uploadAudioPath(String filePath) async {
+    final ext = filePath.split('.').last;
+    return uploadAudioFile(File(filePath), ext: ext);
+  }
+
   Future<String?> pickAndUploadVideo() async {
     final result = await FilePicker.platform.pickFiles(type: FileType.video, withData: kIsWeb);
     if (result == null) return null;

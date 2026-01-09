@@ -15,6 +15,7 @@ class AppSession extends ChangeNotifier {
   String? patientGender;
   String? patientPhone;
   String? patientProblem;
+  Locale? locale;
 
   void setRole(UserRole value) {
     role = value;
@@ -49,6 +50,11 @@ class AppSession extends ChangeNotifier {
     patientGender = gender;
     patientPhone = phone;
     patientProblem = problem;
+    notifyListeners();
+  }
+
+  void setLocale(Locale? value) {
+    locale = value;
     notifyListeners();
   }
 }

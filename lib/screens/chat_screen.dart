@@ -3,6 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+import 'package:record/record.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../app_style.dart';
 import '../app_routes.dart';
@@ -21,6 +25,8 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   String? _convId;
   String? _doctor;
+  bool _recording = false;
+  final AudioRecorder _recorder = AudioRecorder();
 
   @override
   void dispose() {
@@ -131,6 +137,12 @@ class _ChatScreenState extends State<ChatScreen> {
                               ),
                             );
                           }
+                          if (type == 'audio') {
+                            return Align(
+                              alignment: fromMe ? Alignment.centerRight : Alignment.centerLeft,
+                              child: _AudioBubble(url: m['url'] ?? ''),
+                            );
+                          }
                           return fromMe
                               ? _PatientBubble(text: m['text'] ?? '')
                               : _DoctorBubble(text: m['text'] ?? '');
@@ -145,6 +157,8 @@ class _ChatScreenState extends State<ChatScreen> {
             controller: _controller,
             onAttach: _onAttach,
             onSend: _onSend,
+            onMic: _onMic,
+            isRecording: _recording,
             canSend: _convId != null,
           ),
         ],
@@ -196,6 +210,38 @@ class _ChatScreenState extends State<ChatScreen> {
     await ChatService.instance.sendText(_convId!, text);
     if (!mounted) return;
     _controller.clear();
+  }
+
+  Future<void> _onMic() async {
+    if (_convId == null) return;
+    if (kIsWeb) {
+      final url = await StorageService.instance.pickAndUploadAudio();
+      if (url != null) {
+        await ChatService.instance.sendMedia(_convId!, url: url, type: 'audio');
+      }
+      return;
+    }
+    if (!_recording) {
+      final has = await _recorder.hasPermission();
+      if (!has) return;
+      final dir = await getTemporaryDirectory();
+      final filePath = '${dir.path}/rec_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      await _recorder.start(
+        const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 128000, sampleRate: 44100),
+        path: filePath,
+      );
+      if (!mounted) return;
+      setState(() => _recording = true);
+    } else {
+      final path = await _recorder.stop();
+      if (!mounted) return;
+      setState(() => _recording = false);
+      if (path == null) return;
+      final url = await StorageService.instance.uploadAudioPath(path);
+      if (url != null) {
+        await ChatService.instance.sendMedia(_convId!, url: url, type: 'audio');
+      }
+    }
   }
 }
 
@@ -278,8 +324,10 @@ class _Composer extends StatefulWidget {
   final TextEditingController controller;
   final VoidCallback? onAttach;
   final VoidCallback? onSend;
+  final VoidCallback? onMic;
+  final bool isRecording;
   final bool canSend;
-  const _Composer({required this.controller, this.onAttach, this.onSend, this.canSend = true});
+  const _Composer({required this.controller, this.onAttach, this.onSend, this.onMic, this.isRecording = false, this.canSend = true});
 
   @override
   State<_Composer> createState() => _ComposerState();
@@ -324,17 +372,96 @@ class _ComposerState extends State<_Composer> {
                 ),
               ),
               const SizedBox(width: 8),
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: kPrimaryColor,
-                child: IconButton(
-                  onPressed: widget.canSend ? widget.onSend : null,
-                  icon: Icon(hasText ? Icons.send_rounded : Icons.mic, color: Colors.white),
+              if (!hasText) ...[
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  decoration: const BoxDecoration(shape: BoxShape.circle, color: kPrimaryColor),
+                  child: IconButton(
+                    onPressed: widget.canSend ? widget.onMic : null,
+                    icon: Icon(widget.isRecording ? Icons.stop_rounded : Icons.mic, color: Colors.white),
+                  ),
                 ),
-              ),
+              ] else ...[
+                CircleAvatar(
+                  radius: 22,
+                  backgroundColor: kPrimaryColor,
+                  child: IconButton(
+                    onPressed: widget.canSend ? widget.onSend : null,
+                    icon: const Icon(Icons.send_rounded, color: Colors.white),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _AudioBubble extends StatefulWidget {
+  final String url;
+  const _AudioBubble({required this.url});
+
+  @override
+  State<_AudioBubble> createState() => _AudioBubbleState();
+}
+
+class _AudioBubbleState extends State<_AudioBubble> {
+  late final AudioPlayer _player;
+  bool _playing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _player = AudioPlayer();
+    _player.playerStateStream.listen((s) {
+      final playing = s.playing && s.processingState != ProcessingState.completed;
+      if (mounted) setState(() => _playing = playing);
+    });
+    _player.setUrl(widget.url);
+  }
+
+  @override
+  void dispose() {
+    _player.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F4F9),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            onPressed: () async {
+              if (_playing) {
+                await _player.pause();
+              } else {
+                await _player.play();
+              }
+            },
+            icon: Icon(_playing ? Icons.pause_circle_filled : Icons.play_circle_fill, color: kPrimaryColor, size: 28),
+          ),
+          const SizedBox(width: 6),
+          const Icon(Icons.graphic_eq, color: Color(0xFF9CA3B7)),
+          const SizedBox(width: 8),
+          StreamBuilder<Duration?>(
+            stream: _player.positionStream,
+            builder: (context, snap) {
+              final pos = snap.data ?? Duration.zero;
+              final mm = pos.inMinutes.remainder(60).toString().padLeft(2, '0');
+              final ss = pos.inSeconds.remainder(60).toString().padLeft(2, '0');
+              return Text('$mm:$ss', style: const TextStyle(color: kTextColor));
+            },
+          ),
+        ],
       ),
     );
   }

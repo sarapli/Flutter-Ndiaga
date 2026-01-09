@@ -54,7 +54,16 @@ class _SignInScreenState extends State<SignInScreen> {
 
     if (role == 'patient' || role == 'doctor') {
       if (!mounted) return;
-      _navigateByRole(role!);
+      if (role == 'patient') {
+        final hasMinimalProfile = ((data['name'] as String?)?.isNotEmpty == true) && ((data['phone'] as String?)?.isNotEmpty == true);
+        if (!hasMinimalProfile) {
+          Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.editProfile, (r) => false, arguments: {'firstTime': true});
+        } else {
+          _navigateByRole('patient');
+        }
+      } else {
+        _navigateByRole('doctor');
+      }
       return;
     }
 
@@ -84,7 +93,11 @@ class _SignInScreenState extends State<SignInScreen> {
 
     await ref.set({'role': selectedRole}, SetOptions(merge: true));
     if (!mounted) return;
-    _navigateByRole(selectedRole);
+    if (selectedRole == 'patient') {
+      Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.editProfile, (r) => false, arguments: {'firstTime': true});
+    } else {
+      _navigateByRole('doctor');
+    }
   }
 
   void _navigateByRole(String role) {

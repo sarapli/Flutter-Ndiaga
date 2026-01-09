@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_routes.dart';
 import 'app_style.dart';
@@ -36,9 +39,15 @@ import 'screens/help_screen.dart';
 import 'screens/invite_friend_screen.dart';
 import 'screens/favourite_doctors_screen.dart';
 import 'services/firebase_initializer.dart';
+import 'session.dart';
 
 void main() async {
   await FirebaseInitializer.init();
+  final prefs = await SharedPreferences.getInstance();
+  final code = prefs.getString('locale');
+  if (code != null && code.isNotEmpty) {
+    appSession.setLocale(Locale(code));
+  }
   runApp(const MyApp());
 }
 
@@ -48,7 +57,10 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return AnimatedBuilder(
+      animation: appSession,
+      builder: (context, _) {
+        return MaterialApp(
       title: 'DoctorPoint',
       theme: ThemeData(
         // This is the theme of your application.
@@ -70,16 +82,28 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         pageTransitionsTheme: const PageTransitionsTheme(
           builders: <TargetPlatform, PageTransitionsBuilder>{
-            TargetPlatform.android: ZoomPageTransitionsBuilder(),
-            TargetPlatform.iOS: ZoomPageTransitionsBuilder(),
-            TargetPlatform.macOS: FadeUpwardsPageTransitionsBuilder(),
-            TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
-            TargetPlatform.linux: FadeUpwardsPageTransitionsBuilder(),
-            TargetPlatform.fuchsia: ZoomPageTransitionsBuilder(),
+            TargetPlatform.android: ThreeDPageTransitionsBuilder(),
+            TargetPlatform.iOS: ThreeDPageTransitionsBuilder(),
+            TargetPlatform.macOS: ThreeDPageTransitionsBuilder(),
+            TargetPlatform.windows: ThreeDPageTransitionsBuilder(),
+            TargetPlatform.linux: ThreeDPageTransitionsBuilder(),
+            TargetPlatform.fuchsia: ThreeDPageTransitionsBuilder(),
           },
         ),
       ),
       debugShowCheckedModeBanner: false,
+      locale: appSession.locale,
+      supportedLocales: const [
+        Locale('en'),
+        Locale('fr'),
+        Locale('bn'),
+        Locale('nl'),
+      ],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       initialRoute: AppRoutes.splash,
       routes: {
         AppRoutes.splash: (_) => const SplashScreen(),
@@ -121,6 +145,8 @@ class MyApp extends StatelessWidget {
         AppRoutes.favouriteDoctors: (_) => const FavouriteDoctorsScreen(),
       },
     );
+      },
+    );
   }
 }
 
@@ -131,28 +157,111 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final AnimationController _textCtrl;
+  late final Animation<double> _rotationX;
+  late final Animation<double> _rotationY;
+  late final Animation<double> _scale;
+  late final Animation<double> _textOpacity;
+
   @override
   void initState() {
     super.initState();
-    Future<void>.delayed(const Duration(seconds: 2), () {
-      if (!mounted) return;
-      Navigator.of(context).pushReplacementNamed(AppRoutes.onboarding);
-    });
+    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 2))
+      ..addStatusListener((s) {
+        if (s == AnimationStatus.completed && mounted) {
+          Navigator.of(context).pushReplacementNamed(AppRoutes.onboarding);
+        }
+      });
+    _rotationX = Tween<double>(begin: -math.pi, end: 0).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+    _rotationY = Tween<double>(begin: math.pi, end: 0).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
+    _scale = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0.6, end: 1.2).chain(CurveTween(curve: Curves.easeOutBack)), weight: 60),
+      TweenSequenceItem(tween: Tween(begin: 1.2, end: 1.0).chain(CurveTween(curve: Curves.easeIn)), weight: 40),
+    ]).animate(_controller);
+    _controller.forward();
+    _textCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat(reverse: true);
+    _textOpacity = CurvedAnimation(parent: _textCtrl, curve: Curves.easeInOut);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _textCtrl.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Center(
-          child: Image(
-            image: AssetImage('asset/Logo_maquette.png'),
-            width: 240,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedBuilder(
+                animation: _controller,
+                builder: (context, child) {
+                  final m = Matrix4.identity()
+                    ..setEntry(3, 2, 0.0035)
+                    ..rotateX(_rotationX.value)
+                    ..rotateY(_rotationY.value);
+                  return Transform(
+                    transform: m,
+                    alignment: Alignment.center,
+                    child: Transform.scale(scale: _scale.value, child: child),
+                  );
+                },
+                child: const Image(
+                  image: AssetImage('asset/Logo_maquette.png'),
+                  width: 240,
+                ),
+              ),
+              const SizedBox(height: 12),
+              FadeTransition(
+                opacity: _textOpacity,
+                child: const Text(
+                  'Welcome  to Version3.0',
+                  style: TextStyle(color: Color(0xFF0F9D58), fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class ThreeDPageTransitionsBuilder extends PageTransitionsBuilder {
+  const ThreeDPageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(PageRoute<T> route, BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation, Widget child) {
+    final curved = CurvedAnimation(parent: animation, curve: Curves.easeInOutCubic);
+    return AnimatedBuilder(
+      animation: curved,
+      builder: (context, _) {
+        final t = curved.value;
+        final angle = (1 - t) * math.pi / 3;
+        final m = Matrix4.identity()
+          ..setEntry(3, 2, 0.002)
+          ..rotateY(angle);
+        final s = 0.9 + 0.1 * t;
+        return Transform(
+          transform: m,
+          alignment: Alignment.center,
+          child: Transform.scale(
+            scale: s,
+            child: Opacity(
+              opacity: t.clamp(0.0, 1.0),
+              child: child,
+            ),
+          ),
+        );
+      },
     );
   }
 }
