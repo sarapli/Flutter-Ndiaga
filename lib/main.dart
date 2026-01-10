@@ -168,7 +168,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 2))
+    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 10))
       ..addStatusListener((s) {
         if (s == AnimationStatus.completed && mounted) {
           Navigator.of(context).pushReplacementNamed(AppRoutes.onboarding);
