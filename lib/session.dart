@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'models/appointment.dart';
 
-enum UserRole { patient, doctor }
+enum UserRole { patient, doctor, admin }
 
 class AppSession extends ChangeNotifier {
   UserRole? role;

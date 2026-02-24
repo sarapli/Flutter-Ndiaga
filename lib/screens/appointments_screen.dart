@@ -6,7 +6,8 @@ import '../app_style.dart';
 import '../app_routes.dart';
 
 class AppointmentsScreen extends StatefulWidget {
-  const AppointmentsScreen({super.key});
+  final bool showBottomBar;
+  const AppointmentsScreen({super.key, this.showBottomBar = true});
 
   @override
   State<AppointmentsScreen> createState() => _AppointmentsScreenState();
@@ -149,7 +150,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
             ),
         ],
       ),
-      bottomNavigationBar: const _BottomBar(index: 3),
+      bottomNavigationBar: widget.showBottomBar ? const _BottomBar(index: 3) : null,
     );
   }
 }

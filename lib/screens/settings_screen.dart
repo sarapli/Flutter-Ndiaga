@@ -9,7 +9,8 @@ import '../services/auth_service.dart';
 import '../session.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  final bool showBottomBar;
+  const SettingsScreen({super.key, this.showBottomBar = true});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -173,7 +174,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: const _BottomBar(index: 4),
+      bottomNavigationBar: widget.showBottomBar ? const _BottomBar(index: 4) : null,
     );
   }
 }

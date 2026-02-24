@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_routes.dart';
@@ -38,6 +39,9 @@ import 'screens/faqs_screen.dart';
 import 'screens/help_screen.dart';
 import 'screens/invite_friend_screen.dart';
 import 'screens/favourite_doctors_screen.dart';
+import 'features/auth/presentation/auth_gate_screen.dart';
+import 'features/shell/presentation/app_shell_screen.dart';
+import 'screens/home_admin_screen.dart';
 import 'services/firebase_initializer.dart';
 import 'session.dart';
 
@@ -48,7 +52,11 @@ void main() async {
   if (code != null && code.isNotEmpty) {
     appSession.setLocale(Locale(code));
   }
-  runApp(const MyApp());
+  runApp(
+    ProviderScope(
+      child: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -107,6 +115,7 @@ class MyApp extends StatelessWidget {
       initialRoute: AppRoutes.splash,
       routes: {
         AppRoutes.splash: (_) => const SplashScreen(),
+        AppRoutes.authGate: (_) => const AuthGateScreen(),
         AppRoutes.onboarding: (_) => const OnboardingScreen(),
         AppRoutes.auth: (_) => const AuthChoiceScreen(),
         AppRoutes.signIn: (_) => const SignInScreen(),
@@ -118,8 +127,11 @@ class MyApp extends StatelessWidget {
         AppRoutes.roleSelection: (_) => const RoleSelectionScreen(),
         AppRoutes.doctorSpecialty: (_) => const DoctorSpecialtyScreen(),
         AppRoutes.setupProfile: (_) => const SetupProfileScreen(),
+        AppRoutes.shellPatient: (_) => const AppShellScreen(role: ShellRole.patient),
+        AppRoutes.shellDoctor: (_) => const AppShellScreen(role: ShellRole.doctor),
         AppRoutes.homePatient: (_) => const HomePatientScreen(),
         AppRoutes.homeDoctor: (_) => const HomeDoctorScreen(),
+        AppRoutes.homeAdmin: (_) => const HomeAdminScreen(),
         AppRoutes.doctorsList: (_) => const DoctorsListScreen(),
         AppRoutes.doctorDetail: (_) => const DoctorDetailScreen(),
         AppRoutes.appointment: (_) => const AppointmentScreen(),
@@ -171,7 +183,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     _controller = AnimationController(vsync: this, duration: const Duration(seconds: 10))
       ..addStatusListener((s) {
         if (s == AnimationStatus.completed && mounted) {
-          Navigator.of(context).pushReplacementNamed(AppRoutes.onboarding);
+          Navigator.of(context).pushReplacementNamed(AppRoutes.authGate);
         }
       });
     _rotationX = Tween<double>(begin: -math.pi, end: 0).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));

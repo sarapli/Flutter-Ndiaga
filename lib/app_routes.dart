@@ -1,4 +1,5 @@
 class AppRoutes {
+  static const String authGate = '/auth-gate';
   static const String splash = '/splash';
   static const String onboarding = '/onboarding';
   static const String auth = '/auth';
@@ -10,11 +11,14 @@ class AppRoutes {
   static const String resetPassword = '/reset-password';
 
   // Post-auth prototype
+  static const String shellPatient = '/shell/patient';
+  static const String shellDoctor = '/shell/doctor';
   static const String roleSelection = '/role-selection';
   static const String doctorSpecialty = '/doctor-specialty';
   static const String setupProfile = '/setup-profile';
   static const String homePatient = '/home-patient';
   static const String homeDoctor = '/home-doctor';
+  static const String homeAdmin = '/home-admin';
   static const String doctorsList = '/doctors';
   static const String doctorDetail = '/doctor-detail';
   static const String appointment = '/appointment';
