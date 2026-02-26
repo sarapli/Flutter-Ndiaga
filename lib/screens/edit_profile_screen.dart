@@ -138,7 +138,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         width: 120,
                         height: 120,
                         child: _photoUrl == null
-                            ? const ColoredBox(color: Color(0xFFE9EBF2))
+                            ? Image.asset('asset/Profile.png', fit: BoxFit.cover)
                             : Image.network(_photoUrl!, fit: BoxFit.cover),
                       ),
                     ),

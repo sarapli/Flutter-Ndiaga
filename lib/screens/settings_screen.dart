@@ -197,11 +197,12 @@ class _HeaderCard extends StatelessWidget {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: SizedBox(
+            child: SizedBox
+              (
               width: 64,
               height: 64,
               child: (photoUrl == null || photoUrl!.isEmpty)
-                  ? const ColoredBox(color: Color(0xFFE9EBF2))
+                  ? Image.asset('asset/Profile.png', fit: BoxFit.cover)
                   : Image.network(photoUrl!, fit: BoxFit.cover),
             ),
           ),

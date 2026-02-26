@@ -1,11 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../app_routes.dart';
 import '../app_style.dart';
 
-class HomePatientScreen extends StatelessWidget {
+class HomePatientScreen extends StatefulWidget {
   const HomePatientScreen({super.key});
+
+  @override
+  State<HomePatientScreen> createState() => _HomePatientScreenState();
+}
+
+class _HomePatientScreenState extends State<HomePatientScreen> {
+  late final PageController _topDoctorsController;
+  double _currentPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _topDoctorsController = PageController(viewportFraction: 0.72);
+    _topDoctorsController.addListener(() {
+      setState(() {
+        _currentPage = _topDoctorsController.page ?? 0;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _topDoctorsController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -72,9 +98,111 @@ class HomePatientScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Header style maquette (avatar + texte + bouton calendrier)
+              Builder(
+                builder: (context) {
+                  final user = FirebaseAuth.instance.currentUser;
+                  if (user == null) {
+                    return Row(
+                      children: [
+                        const CircleAvatar(
+                          radius: 22,
+                          backgroundImage: AssetImage('asset/Profile.png'),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Patient',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: kTextColor,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'Find your suitable doctor here',
+                                style: TextStyle(fontSize: 13, color: kMutedTextColor),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE7F3F1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: IconButton(
+                            icon: const Icon(Icons.calendar_month_outlined, color: kPrimaryColor, size: 22),
+                            onPressed: () {},
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+
+                  return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                    stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+                    builder: (context, snapshot) {
+                      final data = snapshot.data?.data();
+                      final name = (data != null && data['name'] is String && (data['name'] as String).trim().isNotEmpty)
+                          ? (data['name'] as String).trim()
+                          : 'Patient';
+
+                      return Row(
+                        children: [
+                          const CircleAvatar(
+                            radius: 22,
+                            backgroundImage: AssetImage('asset/Profile.png'),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  name,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: kTextColor,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                const Text(
+                                  'Find your suitable doctor here',
+                                  style: TextStyle(fontSize: 13, color: kMutedTextColor),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE7F3F1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: IconButton(
+                              icon: const Icon(Icons.calendar_month_outlined, color: kPrimaryColor, size: 22),
+                              onPressed: () {},
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
+              ),
+              const SizedBox(height: 18),
               TextField(
                 decoration: InputDecoration(
-                  hintText: 'Search doctor, categories, topic...',
+                  hintText: 'Search doctor, catagories, topic . . .',
                   prefixIcon: const Icon(Icons.search),
                   filled: true,
                   fillColor: const Color(0xFFF7F8FB),
@@ -84,7 +212,7 @@ class HomePatientScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 22),
               const Text('Specialist', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: kTextColor)),
               const SizedBox(height: 12),
               SizedBox(
@@ -119,10 +247,10 @@ class HomePatientScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 18),
-              _InfoCard(
+              const _InfoCard(
                 title: 'Cardio Issues?',
                 subtitle: 'For cardio patient here can easily contact with doctor. Can chat & live chat.',
-                priceTag: '\$100',
+                priceTag: '100',
               ),
               const SizedBox(height: 18),
               Row(
@@ -134,7 +262,7 @@ class HomePatientScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               SizedBox(
-                height: 170,
+                height: 200,
                 child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                   stream: FirebaseFirestore.instance
                       .collection('users')
@@ -152,21 +280,40 @@ class HomePatientScreen extends StatelessWidget {
                     if (docs.isEmpty) {
                       return const Center(child: Text('No top doctors'));
                     }
-                    return ListView.separated(
-                      scrollDirection: Axis.horizontal,
+
+                    return PageView.builder(
+                      controller: _topDoctorsController,
                       itemCount: docs.length,
-                      separatorBuilder: (context, index) => const SizedBox(width: 12),
-                      itemBuilder: (context, i) {
-                        final doc = docs[i];
+                      padEnds: false,
+                      itemBuilder: (context, index) {
+                        final doc = docs[index];
                         final data = doc.data();
                         final name = (data['name'] as String?) ?? 'Doctor';
                         final role = (data['specialtyLabel'] as String?) ??
                             (data['specialtyId'] as String?) ?? 'Specialist';
-                        return _DoctorCard(
-                          name: name,
-                          role: role,
-                          onTap: () => Navigator.of(context)
-                              .pushNamed(AppRoutes.doctorDetail, arguments: doc.id),
+                        final avatarAsset = (data['avatarAsset'] as String?) ?? _fallbackDoctorAsset(index);
+
+                        final distance = (index - _currentPage).abs();
+                        final scale = 1.0 - (distance * 0.15).clamp(0.0, 0.30);
+                        final translationY = 16 * distance;
+                        final rotationY = (index - _currentPage) * 0.35;
+
+                        return Transform(
+                          alignment: Alignment.center,
+                          transform: Matrix4.identity()
+                            ..setEntry(3, 2, 0.001)
+                            ..translate(0.0, translationY, distance * 40)
+                            ..rotateY(rotationY),
+                          child: Transform.scale(
+                            scale: scale,
+                            child: _DoctorCard(
+                              name: name,
+                              role: role,
+                              avatarAsset: avatarAsset,
+                              onTap: () => Navigator.of(context)
+                                  .pushNamed(AppRoutes.doctorDetail, arguments: doc.id),
+                            ),
+                          ),
                         );
                       },
                     );
@@ -281,8 +428,15 @@ class _InfoCard extends StatelessWidget {
 class _DoctorCard extends StatelessWidget {
   final String name;
   final String role;
+  final String avatarAsset;
   final VoidCallback onTap;
-  const _DoctorCard({required this.name, required this.role, required this.onTap});
+
+  const _DoctorCard({
+    required this.name,
+    required this.role,
+    required this.avatarAsset,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -297,21 +451,34 @@ class _DoctorCard extends StatelessWidget {
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
+          children: [
             Expanded(
               child: ClipRRect(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-                child: ColoredBox(color: Color(0xFFE9EBF2)),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                child: Image.asset(
+                  avatarAsset,
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
             Padding(
-              padding: EdgeInsets.all(10),
+              padding: const EdgeInsets.all(10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Dr. Mahmud N', style: TextStyle(fontWeight: FontWeight.w600, color: kTextColor)),
-                  SizedBox(height: 4),
-                  Text('Heart Sergon', style: TextStyle(fontSize: 12, color: kMutedTextColor)),
+                  Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w600, color: kTextColor),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    role,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12, color: kMutedTextColor),
+                  ),
                 ],
               ),
             )
@@ -320,4 +487,14 @@ class _DoctorCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _fallbackDoctorAsset(int index) {
+  const assets = [
+    'asset/Imagedoctor1.png',
+    'asset/imagedoctor2.png',
+    'asset/imagedoctor3.png',
+    'asset/imagedoctor4.png',
+  ];
+  return assets[index % assets.length];
 }
