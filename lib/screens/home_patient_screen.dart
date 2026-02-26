@@ -22,44 +22,49 @@ class HomePatientScreen extends StatelessWidget {
           )
         ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: kPrimaryColor,
-        unselectedItemColor: const Color(0xFFB6BACC),
-        currentIndex: 0,
-        onTap: (index) {
-          if (index == 1) {
-            Navigator.of(context).pushNamed(AppRoutes.notifications);
-          } else if (index == 2) {
-            Navigator.of(context).pushNamed(AppRoutes.search);
-          } else if (index == 3) {
-            Navigator.of(context).pushNamed(AppRoutes.appointments);
-          } else if (index == 4) {
-            Navigator.of(context).pushNamed(AppRoutes.settings);
-          }
-        },
-        items: [
-          BottomNavigationBarItem(
-            icon: Image.asset('asset/Logo_maquette.png', height: 28, width: 28),
-            activeIcon: Container(
-              width: 36,
-              height: 36,
-              decoration: const BoxDecoration(
-                color: Color(0xFFE7F3F1),
-                shape: BoxShape.circle,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(6),
-                child: Image.asset('asset/Logo_maquette.png', height: 24, width: 24),
-              ),
+      bottomNavigationBar: Container(
+        color: Colors.white,
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: 64,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                // Logo item (sélectionné par défaut sur l'écran home patient)
+                Container(
+                  width: 52,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE7F3F1),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  child: Image.asset(
+                    'asset/Logo_maquette.png',
+                    fit: BoxFit.contain,
+                  ),
+                ),
+                _ProtoNavIcon(
+                  icon: Icons.notifications_none_rounded,
+                  onTap: () => Navigator.of(context).pushNamed(AppRoutes.notifications),
+                ),
+                _ProtoNavIcon(
+                  icon: Icons.search_rounded,
+                  onTap: () => Navigator.of(context).pushNamed(AppRoutes.search),
+                ),
+                _ProtoNavIcon(
+                  icon: Icons.list_alt_outlined,
+                  onTap: () => Navigator.of(context).pushNamed(AppRoutes.appointments),
+                ),
+                _ProtoNavIcon(
+                  icon: Icons.settings_outlined,
+                  onTap: () => Navigator.of(context).pushNamed(AppRoutes.settings),
+                ),
+              ],
             ),
-            label: '',
           ),
-          const BottomNavigationBarItem(icon: Icon(Icons.notifications_none), label: 'Alerts'),
-          const BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
-          const BottomNavigationBarItem(icon: Icon(Icons.list_alt_outlined), label: 'Appts'),
-          const BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), label: 'Settings'),
-        ],
+        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -170,6 +175,34 @@ class HomePatientScreen extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProtoNavIcon extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _ProtoNavIcon({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        alignment: Alignment.center,
+        child: Icon(
+          icon,
+          size: 24,
+          color: const Color(0xFF8A8FA3), // gris comme sur le prototype
         ),
       ),
     );

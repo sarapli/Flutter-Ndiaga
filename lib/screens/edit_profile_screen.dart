@@ -26,6 +26,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   bool _loading = false;
   String _phoneCode = '+254';
   String _countryCode = 'KE';
+  bool _isGoogleUser = false;
 
   static const List<_Country> _countries = [
     _Country('SN', 'Senegal', '+221', '🇸🇳'),
@@ -47,6 +48,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void initState() {
     super.initState();
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      _isGoogleUser = user.providerData.any((p) => p.providerId == 'google.com');
+    }
     _loadProfile();
   }
 
@@ -211,19 +216,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ],
               ),
               const SizedBox(height: 16),
-              _Labeled('Password'),
-              TextFormField(
-                controller: _password,
-                obscureText: _obscure,
-                decoration: _inputDecoration('@12587#12568').copyWith(
-                  suffixIcon: IconButton(
-                    icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off, color: const Color(0xFF9CA3B7)),
-                    onPressed: () => setState(() => _obscure = !_obscure),
+              if (!_isGoogleUser) ...[
+                _Labeled('Password'),
+                TextFormField(
+                  controller: _password,
+                  obscureText: _obscure,
+                  decoration: _inputDecoration('@12587#12568').copyWith(
+                    suffixIcon: IconButton(
+                      icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off, color: const Color(0xFF9CA3B7)),
+                      onPressed: () => setState(() => _obscure = !_obscure),
+                    ),
                   ),
+                  validator: (v) => (v == null || v.length < 6) ? 'Min 6 chars' : null,
                 ),
-                validator: (v) => (v == null || v.length < 6) ? 'Min 6 chars' : null,
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
+              ],
               _Labeled('Gender'),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12),

@@ -33,7 +33,19 @@ class _SignInScreenState extends State<SignInScreen> {
     try {
       await AuthService.instance.signInWithEmail(_email.text.trim(), _password.text);
       if (!mounted) return;
-      Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.homePatient, (r) => false);
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        return;
+      }
+
+      final db = FirebaseFirestore.instance;
+      final ref = db.collection('users').doc(user.uid);
+      final snap = await ref.get();
+      final data = snap.data() ?? <String, dynamic>{};
+      final role = (data['role'] as String?) ?? 'patient';
+
+      _navigateByRole(role);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Sign in failed: $e')));
@@ -103,9 +115,9 @@ class _SignInScreenState extends State<SignInScreen> {
   void _navigateByRole(String role) {
     final nav = Navigator.of(context);
     if (role == 'doctor') {
-      nav.pushNamedAndRemoveUntil(AppRoutes.homeDoctor, (r) => false);
+      nav.pushNamedAndRemoveUntil(AppRoutes.shellDoctor, (r) => false);
     } else {
-      nav.pushNamedAndRemoveUntil(AppRoutes.homePatient, (r) => false);
+      nav.pushNamedAndRemoveUntil(AppRoutes.shellPatient, (r) => false);
     }
   }
 

@@ -15,6 +15,23 @@ class ForgotPasswordScreen extends StatefulWidget {
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _phone = TextEditingController();
   bool _sending = false;
+  String _phoneCode = '+254';
+
+  static const List<_CountryDial> _countries = [
+    _CountryDial('SN', '+221'),
+    _CountryDial('CI', '+225'),
+    _CountryDial('ML', '+223'),
+    _CountryDial('GN', '+224'),
+    _CountryDial('FR', '+33'),
+    _CountryDial('GB', '+44'),
+    _CountryDial('US', '+1'),
+    _CountryDial('NL', '+31'),
+    _CountryDial('MA', '+212'),
+    _CountryDial('DZ', '+213'),
+    _CountryDial('TN', '+216'),
+    _CountryDial('NG', '+234'),
+    _CountryDial('KE', '+254'),
+  ];
 
   @override
   void dispose() {
@@ -26,7 +43,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (_sending) return;
     setState(() => _sending = true);
     try {
-      final phone = _phone.text.trim();
+      final local = _phone.text.trim();
+      final phone = '$_phoneCode$local';
       final verificationId = await AuthService.instance.sendOtp(phone);
       if (!mounted) return;
       Navigator.of(context).pushNamed(AppRoutes.otp, arguments: {
@@ -86,7 +104,75 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             ),
                           ),
                           const SizedBox(height: 32),
-                          PhoneField(label: 'Phone number', controller: _phone),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: const [
+                                  Icon(Icons.call_outlined, size: 22, color: Color(0xFF9CA3B7)),
+                                  SizedBox(width: 12),
+                                  Text(
+                                    'Phone number',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w500,
+                                      color: kTextColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF7F8FB),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: kDividerColor),
+                                    ),
+                                    child: DropdownButtonHideUnderline(
+                                      child: DropdownButton<String>(
+                                        value: _phoneCode,
+                                        isDense: true,
+                                        onChanged: (v) {
+                                          if (v == null) return;
+                                          setState(() => _phoneCode = v);
+                                        },
+                                        items: [
+                                          for (final c in _countries)
+                                            DropdownMenuItem(
+                                              value: c.dial,
+                                              child: Text(
+                                                c.dial,
+                                                style: const TextStyle(color: kTextColor),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _phone,
+                                      keyboardType: TextInputType.phone,
+                                      decoration: const InputDecoration(
+                                        hintText: 'Enter your phone number',
+                                        hintStyle: TextStyle(color: Color(0xFFB6BACC)),
+                                        enabledBorder: UnderlineInputBorder(
+                                          borderSide: BorderSide(color: kDividerColor),
+                                        ),
+                                        focusedBorder: UnderlineInputBorder(
+                                          borderSide: BorderSide(color: kDividerColor),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                           const Spacer(),
                           SizedBox(
                             height: 56,
@@ -122,3 +208,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     );
   }
 }
+
+class _CountryDial {
+  final String code;
+  final String dial;
+  const _CountryDial(this.code, this.dial);
+}
+
