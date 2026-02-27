@@ -87,7 +87,7 @@ class _BottomNavLogoItem extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  const _BottomNavLogoItem({super.key, required this.selected, required this.onTap});
+  const _BottomNavLogoItem({required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -117,7 +117,7 @@ class _BottomNavIconItem extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  const _BottomNavIconItem({super.key, required this.icon, required this.selected, required this.onTap});
+  const _BottomNavIconItem({required this.icon, required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {

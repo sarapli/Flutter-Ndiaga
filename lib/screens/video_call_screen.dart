@@ -1,10 +1,14 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:agora_rtc_engine/agora_rtc_engine.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../app_style.dart';
 import '../app_routes.dart';
 import '../session.dart';
+import '../agora_config.dart';
 
 class VideoCallScreen extends StatefulWidget {
   const VideoCallScreen({super.key});
@@ -18,20 +22,92 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   int _seconds = 0;
   bool _muted = false;
   bool _cameraOff = false;
+  RtcEngine? _engine;
+  bool _joined = false;
+  int? _remoteUid;
+  String? _channelId;
 
   @override
   void initState() {
     super.initState();
+    _initAgora();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
-      setState(() => _seconds++);
+      if (_joined) {
+        setState(() => _seconds++);
+      }
     });
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _engine?.leaveChannel();
+    _engine?.release();
     super.dispose();
+  }
+
+  Future<void> _initAgora() async {
+    // Sur le web, le plugin agora_rtc_engine n'est pas supporté : on garde l'UI uniquement.
+    if (kIsWeb) return;
+    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    final doctorId = args?['doctorId'] as String? ?? appSession.doctorId ?? 'unknown';
+    final userId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
+    _channelId = 'call_${userId}_$doctorId';
+
+    final engine = createAgoraRtcEngine();
+    _engine = engine;
+    await engine.initialize(const RtcEngineContext(
+      appId: agoraAppId,
+      channelProfile: ChannelProfileType.channelProfileCommunication,
+    ));
+
+    await engine.enableVideo();
+    await engine.setClientRole(role: ClientRoleType.clientRoleBroadcaster);
+
+    engine.registerEventHandler(RtcEngineEventHandler(
+      onJoinChannelSuccess: (RtcConnection connection, int elapsed) {
+        if (mounted) {
+          setState(() {
+            _joined = true;
+          });
+        }
+      },
+      onUserJoined: (RtcConnection connection, int remoteUid, int elapsed) {
+        if (mounted) {
+          setState(() {
+            _remoteUid = remoteUid;
+          });
+        }
+      },
+      onUserOffline: (RtcConnection connection, int remoteUid, UserOfflineReasonType reason) {
+        if (mounted) {
+          setState(() {
+            _remoteUid = null;
+          });
+        }
+      },
+      onLeaveChannel: (RtcConnection connection, RtcStats stats) {
+        if (mounted) {
+          setState(() {
+            _joined = false;
+            _remoteUid = null;
+          });
+        }
+      },
+    ));
+
+    await engine.startPreview();
+
+    await engine.joinChannel(
+      token: '',
+      channelId: _channelId!,
+      uid: 0,
+      options: const ChannelMediaOptions(
+        channelProfile: ChannelProfileType.channelProfileCommunication,
+        clientRoleType: ClientRoleType.clientRoleBroadcaster,
+      ),
+    );
   }
 
   String _fmt(int s) {
@@ -54,10 +130,14 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
           Positioned.fill(
             child: _cameraOff
                 ? Container(color: const Color(0xFF2A2E3A))
-                : Image.asset(
-                    'asset/Page3.png',
-                    fit: BoxFit.cover,
-                  ),
+                : (_joined && _engine != null
+                    ? AgoraVideoView(
+                        controller: VideoViewController(
+                          rtcEngine: _engine!,
+                          canvas: const VideoCanvas(uid: 0),
+                        ),
+                      )
+                    : const Center(child: CircularProgressIndicator())),
           ),
           SafeArea(
             child: Align(
@@ -88,7 +168,15 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                   boxShadow: const [BoxShadow(color: Color(0x22000000), blurRadius: 12, offset: Offset(0, 6))],
                 ),
                 clipBehavior: Clip.antiAlias,
-                child: Image.asset('asset/Page_2.png', fit: BoxFit.cover),
+                child: _remoteUid != null && _engine != null
+                    ? AgoraVideoView(
+                        controller: VideoViewController.remote(
+                          rtcEngine: _engine!,
+                          connection: RtcConnection(channelId: _channelId!),
+                          canvas: VideoCanvas(uid: _remoteUid),
+                        ),
+                      )
+                    : const ColoredBox(color: Color(0xFF2A2E3A)),
               ),
             ),
           ),
@@ -116,7 +204,13 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                         _CircleBtn(
                           color: const Color(0xFF178F80),
                           icon: _muted ? Icons.mic_off : Icons.mic,
-                          onTap: () => setState(() => _muted = !_muted),
+                          onTap: () async {
+                            final newMuted = !_muted;
+                            await _engine?.muteLocalAudioStream(newMuted);
+                            if (mounted) {
+                              setState(() => _muted = newMuted);
+                            }
+                          },
                         ),
                         _CircleBtn(
                           color: const Color(0xFF178F80),
@@ -126,15 +220,24 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                         _CircleBtn(
                           color: const Color(0xFF178F80),
                           icon: _cameraOff ? Icons.videocam_off : Icons.videocam,
-                          onTap: () => setState(() => _cameraOff = !_cameraOff),
+                          onTap: () async {
+                            final off = !_cameraOff;
+                            await _engine?.enableLocalVideo(!off);
+                            if (mounted) {
+                              setState(() => _cameraOff = off);
+                            }
+                          },
                         ),
                         _CircleBtn(
                           color: const Color(0xFFE85151),
                           icon: Icons.call_end_rounded,
-                          onTap: () => Navigator.of(context).pushReplacementNamed(
-                            AppRoutes.callEnded,
-                            arguments: {'doctor': doctor, 'duration': _fmt(_seconds)},
-                          ),
+                          onTap: () {
+                            _engine?.leaveChannel();
+                            Navigator.of(context).pushReplacementNamed(
+                              AppRoutes.callEnded,
+                              arguments: {'doctor': doctor, 'duration': _fmt(_seconds)},
+                            );
+                          },
                         ),
                       ],
                     ),

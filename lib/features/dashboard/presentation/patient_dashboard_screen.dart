@@ -288,37 +288,6 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
   }
 }
 
-class _SpecialistChip extends StatelessWidget {
-  final String label;
-  final int count;
-  const _SpecialistChip({required this.label, required this.count});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 12),
-      child: GestureDetector(
-        onTap: () => Navigator.of(context).pushNamed(AppRoutes.doctorsList),
-        child: Container(
-          width: 120,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF7F8FB),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: const TextStyle(fontWeight: FontWeight.w600, color: kTextColor)),
-              const SizedBox(height: 6),
-              Text('$count Doctors', style: const TextStyle(fontSize: 12, color: kMutedTextColor)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _InfoCard extends StatelessWidget {
   final String title;
@@ -455,7 +424,7 @@ class _StaticSpecialistCard extends StatelessWidget {
                 width: 34,
                 height: 34,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: Colors.white, size: 20),

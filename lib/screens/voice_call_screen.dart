@@ -1,10 +1,14 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:agora_rtc_engine/agora_rtc_engine.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../app_style.dart';
 import '../app_routes.dart';
 import '../session.dart';
+import '../agora_config.dart';
 
 class VoiceCallScreen extends StatefulWidget {
   const VoiceCallScreen({super.key});
@@ -17,20 +21,75 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
   Timer? _timer;
   int _seconds = 0;
   bool _muted = false;
+  RtcEngine? _engine;
+  bool _joined = false;
+  String? _channelId;
 
   @override
   void initState() {
     super.initState();
+    _initAgora();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
-      setState(() => _seconds++);
+      if (_joined) {
+        setState(() => _seconds++);
+      }
     });
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _engine?.leaveChannel();
+    _engine?.release();
     super.dispose();
+  }
+
+  Future<void> _initAgora() async {
+    // Sur le web, le plugin agora_rtc_engine n'est pas supporté : on garde l'UI uniquement.
+    if (kIsWeb) return;
+    // Récupère le doctorId (si dispo) pour construire un channel stable patient-doctor
+    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    final doctorId = args?['doctorId'] as String? ?? appSession.doctorId ?? 'unknown';
+    final userId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
+    _channelId = 'call_${userId}_$doctorId';
+
+    final engine = createAgoraRtcEngine();
+    _engine = engine;
+    await engine.initialize(const RtcEngineContext(
+      appId: agoraAppId,
+      channelProfile: ChannelProfileType.channelProfileCommunication,
+    ));
+
+    await engine.enableAudio();
+    await engine.setClientRole(role: ClientRoleType.clientRoleBroadcaster);
+
+    engine.registerEventHandler(RtcEngineEventHandler(
+      onJoinChannelSuccess: (RtcConnection connection, int elapsed) {
+        if (mounted) {
+          setState(() {
+            _joined = true;
+          });
+        }
+      },
+      onLeaveChannel: (RtcConnection connection, RtcStats stats) {
+        if (mounted) {
+          setState(() {
+            _joined = false;
+          });
+        }
+      },
+    ));
+
+    await engine.joinChannel(
+      token: '',
+      channelId: _channelId!,
+      uid: 0,
+      options: const ChannelMediaOptions(
+        channelProfile: ChannelProfileType.channelProfileCommunication,
+        clientRoleType: ClientRoleType.clientRoleBroadcaster,
+      ),
+    );
   }
 
   String _fmt(int s) {
@@ -64,7 +123,9 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
                   backgroundColor: Colors.white,
                   child: IconButton(
                     icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF9CA3B7)),
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
                   ),
                 ),
               ),
@@ -93,7 +154,13 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
                         _CircleBtn(
                           color: const Color(0xFF178F80),
                           icon: _muted ? Icons.mic_off : Icons.mic,
-                          onTap: () => setState(() => _muted = !_muted),
+                          onTap: () async {
+                            final newMuted = !_muted;
+                            await _engine?.muteLocalAudioStream(newMuted);
+                            if (mounted) {
+                              setState(() => _muted = newMuted);
+                            }
+                          },
                         ),
                         _CircleBtn(
                           color: const Color(0xFF178F80),
@@ -108,10 +175,13 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
                         _CircleBtn(
                           color: const Color(0xFFE85151),
                           icon: Icons.call_end_rounded,
-                          onTap: () => Navigator.of(context).pushReplacementNamed(
-                            AppRoutes.callEnded,
-                            arguments: {'doctor': doctor, 'duration': _fmt(_seconds)},
-                          ),
+                          onTap: () {
+                            _engine?.leaveChannel();
+                            Navigator.of(context).pushReplacementNamed(
+                              AppRoutes.callEnded,
+                              arguments: {'doctor': doctor, 'duration': _fmt(_seconds)},
+                            );
+                          },
                         ),
                       ],
                     ),
