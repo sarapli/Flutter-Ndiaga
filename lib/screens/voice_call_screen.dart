@@ -9,6 +9,7 @@ import '../app_style.dart';
 import '../app_routes.dart';
 import '../session.dart';
 import '../agora_config.dart';
+import '../services/agora_web_bridge.dart';
 
 class VoiceCallScreen extends StatefulWidget {
   const VoiceCallScreen({super.key});
@@ -46,8 +47,15 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
   }
 
   Future<void> _initAgora() async {
-    // Sur le web, le plugin agora_rtc_engine n'est pas supporté : on garde l'UI uniquement.
-    if (kIsWeb) return;
+    // Sur le web, on passe par le bridge JavaScript (option A) pour demander les permissions micro.
+    if (kIsWeb) {
+      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      final doctorId = args?['doctorId'] as String? ?? appSession.doctorId ?? 'unknown';
+      final userId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
+      final channel = 'call_${userId}_$doctorId';
+      agoraWebStartVoiceCall(channel, userId, doctorId);
+      return;
+    }
     // Récupère le doctorId (si dispo) pour construire un channel stable patient-doctor
     final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
     final doctorId = args?['doctorId'] as String? ?? appSession.doctorId ?? 'unknown';
