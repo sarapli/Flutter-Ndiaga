@@ -117,7 +117,18 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                                 final data = d.data();
                                 final doctor = (data['name'] as String?) ?? 'Doctor';
                                 final doctorId = d.id;
-                                final avatarAsset = (data['avatarAsset'] as String?) ?? _fallbackDoctorAsset(index);
+                                final existingAvatar = data['avatarAsset'] as String?;
+                                final avatarAsset = existingAvatar ?? _fallbackDoctorAsset(index);
+
+                                // Si aucun avatar n'est encore enregistré pour ce docteur,
+                                // on persiste l'avatar de maquette afin qu'il soit réutilisé
+                                // partout (search, call ended, compte docteur, etc.).
+                                if (existingAvatar == null || existingAvatar.isEmpty) {
+                                  FirebaseFirestore.instance
+                                      .collection('users')
+                                      .doc(doctorId)
+                                      .set({'avatarAsset': avatarAsset}, SetOptions(merge: true));
+                                }
                                 const type = 'voice';
                                 return _ApptItem(
                                   doctor: doctor,

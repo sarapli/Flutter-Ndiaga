@@ -99,6 +99,7 @@ class _SearchScreenState extends State<SearchScreen> {
                         : '$specialty - $hospital';
                     final rating = (data['rating'] as num?)?.toDouble() ?? 4.8;
                     final reviews = (data['reviews'] as num?)?.toInt() ?? 25;
+                    final avatarAsset = data['avatarAsset'] as String?;
 
                     return _DoctorTile(
                       doctorId: doc.id,
@@ -106,6 +107,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       subtitle: subtitle,
                       rating: rating,
                       reviews: reviews,
+                      avatarAsset: avatarAsset,
                     );
                   },
                 );
@@ -125,6 +127,7 @@ class _DoctorTile extends StatelessWidget {
   final String subtitle;
   final double rating;
   final int reviews;
+  final String? avatarAsset;
 
   const _DoctorTile({
     required this.doctorId,
@@ -132,6 +135,7 @@ class _DoctorTile extends StatelessWidget {
     required this.subtitle,
     required this.rating,
     required this.reviews,
+    this.avatarAsset,
   });
 
   @override
@@ -150,7 +154,17 @@ class _DoctorTile extends StatelessWidget {
               tag: 'doctor-hero',
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: const ColoredBox(color: Color(0xFFE9EBF2), child: SizedBox(width: 66, height: 66)),
+                child: avatarAsset == null || avatarAsset!.isEmpty
+                    ? const ColoredBox(
+                        color: Color(0xFFE9EBF2),
+                        child: SizedBox(width: 66, height: 66),
+                      )
+                    : Image.asset(
+                        avatarAsset!,
+                        width: 66,
+                        height: 66,
+                        fit: BoxFit.cover,
+                      ),
               ),
             ),
             const SizedBox(width: 12),

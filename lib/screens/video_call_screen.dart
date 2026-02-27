@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import '../app_style.dart';
 import '../app_routes.dart';
 import '../session.dart';
 import '../agora_config.dart';
@@ -34,9 +33,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     _initAgora();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
-      if (_joined) {
-        setState(() => _seconds++);
-      }
+      setState(() => _seconds++);
     });
   }
 
@@ -56,6 +53,11 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
       final userId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
       final channel = 'call_${userId}_$doctorId';
       agoraWebStartVideoCall(channel, userId, doctorId);
+      if (mounted) {
+        setState(() {
+          _joined = true;
+        });
+      }
       return;
     }
     final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
@@ -130,6 +132,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   Widget build(BuildContext context) {
     final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
     final doctor = args?['doctor'] as String? ?? appSession.doctorName ?? 'Dr. Tierra Riley';
+    final doctorId = args?['doctorId'] as String? ?? appSession.doctorId;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -255,7 +258,11 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                             _engine?.leaveChannel();
                             Navigator.of(context).pushReplacementNamed(
                               AppRoutes.callEnded,
-                              arguments: {'doctor': doctor, 'duration': _fmt(_seconds)},
+                              arguments: {
+                                'doctor': doctor,
+                                'doctorId': doctorId,
+                                'duration': _fmt(_seconds),
+                              },
                             );
                           },
                         ),
