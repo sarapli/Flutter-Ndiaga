@@ -90,8 +90,81 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                           return const Center(child: CircularProgressIndicator());
                         }
                         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                          return const Center(
-                            child: Text('No upcoming appointments yet', style: TextStyle(color: kMutedTextColor)),
+                          return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                            stream: FirebaseFirestore.instance
+                                .collection('users')
+                                .where('role', isEqualTo: 'doctor')
+                                .snapshots(),
+                            builder: (context, doctorSnap) {
+                              if (doctorSnap.connectionState == ConnectionState.waiting) {
+                                return const Center(child: CircularProgressIndicator());
+                              }
+                              final allDocs = doctorSnap.data?.docs ?? [];
+                              final docs = allDocs.where((d) {
+                                final data = d.data();
+                                final name = (data['name'] as String?) ?? '';
+                                return name.trim() != 'Version 4.0';
+                              }).toList(growable: false);
+                              if (docs.isEmpty) {
+                                return const Center(
+                                  child: Text('No upcoming appointments yet', style: TextStyle(color: kMutedTextColor)),
+                                );
+                              }
+
+                              final appts = docs.asMap().entries.map((entry) {
+                                final index = entry.key;
+                                final d = entry.value;
+                                final data = d.data();
+                                final doctor = (data['name'] as String?) ?? 'Doctor';
+                                final doctorId = d.id;
+                                final avatarAsset = (data['avatarAsset'] as String?) ?? _fallbackDoctorAsset(index);
+                                const type = 'voice';
+                                return _ApptItem(
+                                  doctor: doctor,
+                                  subtitle: _typeLabel(type),
+                                  type: type,
+                                  timeRange: '09:00 AM - 10:00 AM',
+                                  dateLabel: 'Today - 10 June, 2020',
+                                  status: 'In Progress',
+                                  avatarAsset: avatarAsset,
+                                  doctorId: doctorId,
+                                );
+                              }).toList();
+
+                              return ListView.separated(
+                                padding: const EdgeInsets.all(16),
+                                itemCount: appts.length,
+                                separatorBuilder: (context, index) => const SizedBox(height: 12),
+                                itemBuilder: (context, i) {
+                                  final it = appts[i];
+                                  final card = _AppointmentCard(
+                                    item: it,
+                                    onTap: () {
+                                      // Pour le fallback, tous les rendez-vous sont de type "voice"
+                                      Navigator.of(context).pushNamed(
+                                        AppRoutes.voiceCall,
+                                        arguments: {'doctor': it.doctor},
+                                      );
+                                    },
+                                  );
+
+                                  if (i == 0 || appts[i - 1].dateLabel != it.dateLabel) {
+                                    return Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          it.dateLabel,
+                                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: kMutedTextColor),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        card,
+                                      ],
+                                    );
+                                  }
+                                  return card;
+                                },
+                              );
+                            },
                           );
                         }
                         final docs = snapshot.data!.docs;
@@ -99,15 +172,17 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                           final data = d.data();
                           final type = (data['type'] as String?) ?? 'message';
                           final doctor = (data['doctorName'] as String?) ?? 'Doctor';
+                          final doctorId = (data['doctorId'] as String?);
                           final time = (data['time'] as String?) ?? '10:00 AM';
                           final status = (data['status'] as String?) ?? 'Booked';
                           return _ApptItem(
                             doctor: doctor,
-                            subtitle: '${_typeLabel(type)}  •  $status',
+                            subtitle: _typeLabel(type),
                             type: type,
                             timeRange: _expandOneHour(time),
                             dateLabel: 'Today - 10 June, 2020',
                             status: status,
+                            doctorId: doctorId,
                           );
                         }).toList();
                         return ListView.separated(
@@ -116,20 +191,39 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                           separatorBuilder: (context, index) => const SizedBox(height: 12),
                           itemBuilder: (context, i) {
                             final it = appts[i];
-                            return _AppointmentCard(
+                            final card = _AppointmentCard(
                               item: it,
                               onTap: () {
+                                final args = {
+                                  'doctor': it.doctor,
+                                  if (it.doctorId != null) 'doctorId': it.doctorId,
+                                };
                                 if (it.type == 'message') {
-                                  Navigator.of(context).pushNamed(AppRoutes.chat, arguments: {'doctor': it.doctor});
+                                  Navigator.of(context).pushNamed(AppRoutes.chat, arguments: args);
                                 } else if (it.type == 'voice') {
-                                  Navigator.of(context).pushNamed(AppRoutes.voiceCall, arguments: {'doctor': it.doctor});
+                                  Navigator.of(context).pushNamed(AppRoutes.voiceCall, arguments: args);
                                 } else if (it.type == 'video') {
-                                  Navigator.of(context).pushNamed(AppRoutes.videoCall, arguments: {'doctor': it.doctor});
+                                  Navigator.of(context).pushNamed(AppRoutes.videoCall, arguments: args);
                                 } else {
                                   Navigator.of(context).pushNamed(AppRoutes.appointmentDetail, arguments: it.toArgs());
                                 }
                               },
                             );
+
+                            if (i == 0 || appts[i - 1].dateLabel != it.dateLabel) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    it.dateLabel,
+                                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: kMutedTextColor),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  card,
+                                ],
+                              );
+                            }
+                            return card;
                           },
                         );
                       },
@@ -187,6 +281,8 @@ class _ApptItem {
   final String timeRange;
   final String dateLabel;
   final String status; // Accepted | In Progress | Decline
+  final String? avatarAsset;
+  final String? doctorId;
 
   const _ApptItem({
     required this.doctor,
@@ -195,6 +291,8 @@ class _ApptItem {
     required this.timeRange,
     required this.dateLabel,
     required this.status,
+    this.avatarAsset,
+    this.doctorId,
   });
 
   Map<String, dynamic> toArgs() => {
@@ -203,6 +301,7 @@ class _ApptItem {
         'timeRange': timeRange,
         'date': dateLabel,
         'status': status,
+        'doctorId': doctorId,
       };
 }
 
@@ -221,6 +320,21 @@ class _AppointmentCard extends StatelessWidget {
       ? const Color(0xFFFF9130)
       : const Color(0xFF6F6F86);
 
+  Color get _statusColor {
+    switch (item.status.toLowerCase()) {
+      case 'accepted':
+      case 'booked':
+        return const Color(0xFF1CA796);
+      case 'in progress':
+        return const Color(0xFFFFA000);
+      case 'decline':
+      case 'canceled':
+        return const Color(0xFFE53935);
+      default:
+        return kMutedTextColor;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return InkWell(
@@ -234,7 +348,17 @@ class _AppointmentCard extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: const ColoredBox(color: Color(0xFFE9EBF2), child: SizedBox(width: 66, height: 66)),
+              child: item.avatarAsset == null
+                  ? const ColoredBox(
+                      color: Color(0xFFE9EBF2),
+                      child: SizedBox(width: 66, height: 66),
+                    )
+                  : Image.asset(
+                      item.avatarAsset!,
+                      width: 66,
+                      height: 66,
+                      fit: BoxFit.cover,
+                    ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -244,7 +368,17 @@ class _AppointmentCard extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(children: [Icon(_icon, color: _typeColor, size: 16), const SizedBox(width: 6), Text(item.subtitle, style: const TextStyle(fontSize: 12, color: kMutedTextColor))]),
+                      Row(
+                        children: [
+                          Icon(_icon, color: _typeColor, size: 16),
+                          const SizedBox(width: 6),
+                          Text(item.subtitle, style: const TextStyle(fontSize: 12, color: kMutedTextColor)),
+                        ],
+                      ),
+                      Text(
+                        item.status,
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _statusColor),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 6),
@@ -293,4 +427,14 @@ class _BottomBar extends StatelessWidget {
       ],
     );
   }
+}
+
+String _fallbackDoctorAsset(int index) {
+  const assets = [
+    'asset/Imagedoctor1.png',
+    'asset/imagedoctor2.png',
+    'asset/imagedoctor3.png',
+    'asset/imagedoctor4.png',
+  ];
+  return assets[index % assets.length];
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../app_style.dart';
 import '../app_routes.dart';
@@ -13,14 +14,6 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _query = TextEditingController();
 
-  final List<_DoctorItem> _all = const [
-    _DoctorItem(name: 'Dr. Mahmud Nik Hasan', subtitle: 'Cardiologist - Dhaka Medical College Hospital', rating: 4.9, reviews: 37),
-    _DoctorItem(name: 'Dr. Winston McCaffrey', subtitle: 'Heart Sergon - Khulna Medical College Hospital', rating: 4.8, reviews: 25),
-    _DoctorItem(name: 'Dr. Brycen Bradford', subtitle: 'Therapist - Khulna Medical City Hospital', rating: 4.7, reviews: 42),
-    _DoctorItem(name: 'Dr. Tierra Riley', subtitle: 'Heart Sergon - Akij Medical Hospital, Dhaka', rating: 4.6, reviews: 31),
-    _DoctorItem(name: 'Dr. Ashley Wentworth', subtitle: 'Heart Sergon - Dhaka Medical College Hospital', rating: 4.5, reviews: 12),
-  ];
-
   @override
   void dispose() {
     _query.dispose();
@@ -29,10 +22,6 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final list = _all
-        .where((d) => d.name.toLowerCase().contains(_query.text.toLowerCase()))
-        .toList(growable: false);
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -64,12 +53,62 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ),
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              itemCount: list.length,
-              itemBuilder: (context, i) {
-                final d = list[i];
-                return _DoctorTile(item: d);
+            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .where('role', isEqualTo: 'doctor')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return const Center(child: Text('Failed to load doctors'));
+                }
+                final docs = snapshot.data?.docs ?? [];
+                if (docs.isEmpty) {
+                  return const Center(child: Text('No doctors found'));
+                }
+
+                final query = _query.text.trim().toLowerCase();
+                final filtered = query.isEmpty
+                    ? docs
+                    : docs.where((d) {
+                        final data = d.data();
+                        final name = (data['name'] as String?) ?? '';
+                        return name.toLowerCase().contains(query);
+                      }).toList(growable: false);
+
+                if (filtered.isEmpty) {
+                  return const Center(child: Text('No doctors match your search'));
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  itemCount: filtered.length,
+                  itemBuilder: (context, i) {
+                    final doc = filtered[i];
+                    final data = doc.data();
+                    final name = (data['name'] as String?) ?? 'Doctor';
+                    final specialty = (data['specialtyLabel'] as String?) ??
+                        (data['specialtyId'] as String?) ??
+                        'Specialist';
+                    final hospital = (data['hospital'] as String?) ?? '';
+                    final subtitle = hospital.isEmpty
+                        ? specialty
+                        : '$specialty - $hospital';
+                    final rating = (data['rating'] as num?)?.toDouble() ?? 4.8;
+                    final reviews = (data['reviews'] as num?)?.toInt() ?? 25;
+
+                    return _DoctorTile(
+                      doctorId: doc.id,
+                      name: name,
+                      subtitle: subtitle,
+                      rating: rating,
+                      reviews: reviews,
+                    );
+                  },
+                );
               },
             ),
           ),
@@ -80,22 +119,25 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 }
 
-class _DoctorItem {
+class _DoctorTile extends StatelessWidget {
+  final String doctorId;
   final String name;
   final String subtitle;
   final double rating;
   final int reviews;
-  const _DoctorItem({required this.name, required this.subtitle, required this.rating, required this.reviews});
-}
 
-class _DoctorTile extends StatelessWidget {
-  final _DoctorItem item;
-  const _DoctorTile({required this.item});
+  const _DoctorTile({
+    required this.doctorId,
+    required this.name,
+    required this.subtitle,
+    required this.rating,
+    required this.reviews,
+  });
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () => Navigator.of(context).pushNamed(AppRoutes.doctorDetail),
+      onTap: () => Navigator.of(context).pushNamed(AppRoutes.doctorDetail, arguments: doctorId),
       borderRadius: BorderRadius.circular(16),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
@@ -120,13 +162,13 @@ class _DoctorTile extends StatelessWidget {
                     children: [
                       const Icon(Icons.star, color: Color(0xFFFF9130), size: 16),
                       const SizedBox(width: 4),
-                      Text('${item.rating} ( ${item.reviews} Reviews)', style: const TextStyle(fontSize: 12, color: kMutedTextColor)),
+                      Text('$rating ( $reviews Reviews)', style: const TextStyle(fontSize: 12, color: kMutedTextColor)),
                     ],
                   ),
                   const SizedBox(height: 6),
-                  Text(item.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: kTextColor)),
+                  Text(name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: kTextColor)),
                   const SizedBox(height: 4),
-                  Text(item.subtitle, style: const TextStyle(fontSize: 12, color: kMutedTextColor)),
+                  Text(subtitle, style: const TextStyle(fontSize: 12, color: kMutedTextColor)),
                 ],
               ),
             ),

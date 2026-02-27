@@ -40,7 +40,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         phone: _phone.text.trim().isEmpty ? null : _phone.text.trim(),
       );
       if (!mounted) return;
-      Navigator.of(context).pushReplacementNamed(AppRoutes.signIn);
+      Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.homePatient, (r) => false);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Sign up failed: $e')));

@@ -57,11 +57,11 @@ class _AuthGateScreenState extends ConsumerState<AuthGateScreen> {
       if (role == 'doctor') {
         Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.shellDoctor, (_) => false);
       } else {
-        Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.shellPatient, (_) => false);
+        Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.homePatient, (_) => false);
       }
     } catch (_) {
       if (!mounted) return;
-      Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.shellPatient, (_) => false);
+      Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.homePatient, (_) => false);
     }
   }
 

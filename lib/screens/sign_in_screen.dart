@@ -117,7 +117,7 @@ class _SignInScreenState extends State<SignInScreen> {
     if (role == 'doctor') {
       nav.pushNamedAndRemoveUntil(AppRoutes.shellDoctor, (r) => false);
     } else {
-      nav.pushNamedAndRemoveUntil(AppRoutes.shellPatient, (r) => false);
+      nav.pushNamedAndRemoveUntil(AppRoutes.homePatient, (r) => false);
     }
   }
 

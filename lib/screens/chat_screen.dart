@@ -25,6 +25,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   String? _convId;
   String? _doctor;
+  String? _doctorId;
   bool _recording = false;
   final AudioRecorder _recorder = AudioRecorder();
 
@@ -39,14 +40,16 @@ class _ChatScreenState extends State<ChatScreen> {
     super.didChangeDependencies();
     final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
     final doctor = args?['doctor'] as String? ?? appSession.doctorName ?? 'Dr. Mahmud Nik';
-    if (_doctor != doctor) {
+    final doctorId = args?['doctorId'] as String? ?? appSession.doctorId;
+    if (_doctor != doctor || _doctorId != doctorId) {
       _doctor = doctor;
+      _doctorId = doctorId;
       _initConversation();
     }
   }
 
   Future<void> _initConversation() async {
-    final otherId = 'doc:${_doctor ?? 'unknown'}';
+    final otherId = _doctorId ?? 'doc:${_doctor ?? 'unknown'}';
     final id = await ChatService.instance.ensureConversation(otherId: otherId, otherName: _doctor);
     if (!mounted) return;
     setState(() => _convId = id);

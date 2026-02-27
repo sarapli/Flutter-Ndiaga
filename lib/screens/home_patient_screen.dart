@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -13,23 +15,30 @@ class HomePatientScreen extends StatefulWidget {
 }
 
 class _HomePatientScreenState extends State<HomePatientScreen> {
-  late final PageController _topDoctorsController;
-  double _currentPage = 0;
+  late final ScrollController _topDoctorsScrollController;
+  Timer? _topDoctorsTimer;
 
   @override
   void initState() {
     super.initState();
-    _topDoctorsController = PageController(viewportFraction: 0.72);
-    _topDoctorsController.addListener(() {
-      setState(() {
-        _currentPage = _topDoctorsController.page ?? 0;
-      });
+    _topDoctorsScrollController = ScrollController();
+    _topDoctorsTimer = Timer.periodic(const Duration(milliseconds: 30), (_) {
+      if (!_topDoctorsScrollController.hasClients) return;
+      final maxScroll = _topDoctorsScrollController.position.maxScrollExtent;
+      final current = _topDoctorsScrollController.offset;
+      final next = current + 1;
+      if (next >= maxScroll) {
+        _topDoctorsScrollController.jumpTo(0);
+      } else {
+        _topDoctorsScrollController.jumpTo(next);
+      }
     });
   }
 
   @override
   void dispose() {
-    _topDoctorsController.dispose();
+    _topDoctorsTimer?.cancel();
+    _topDoctorsScrollController.dispose();
     super.dispose();
   }
 
@@ -214,9 +223,9 @@ class _HomePatientScreenState extends State<HomePatientScreen> {
               ),
               const SizedBox(height: 22),
               const Text('Specialist', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: kTextColor)),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               SizedBox(
-                height: 88,
+                height: 112,
                 child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                   stream: FirebaseFirestore.instance
                       .collection('specialties')
@@ -230,7 +239,39 @@ class _HomePatientScreenState extends State<HomePatientScreen> {
                     }
                     final docs = snapshot.data?.docs ?? [];
                     if (docs.isEmpty) {
-                      return const Center(child: Text('No specialties'));
+                      const fallback = [
+                        {'label': 'Cardio Specialist', 'count': 27},
+                        {'label': 'Heart Issue', 'count': 43},
+                        {'label': 'Dental Care', 'count': 19},
+                        {'label': 'Physio Therapy', 'count': 7},
+                      ];
+                      return ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: fallback.length,
+                        itemBuilder: (context, index) {
+                          final item = fallback[index];
+                          const colors = [
+                            Color(0xFF0F9D58),
+                            Color(0xFF3B82F6),
+                            Color(0xFFFFA000),
+                            Color(0xFF8B5CF6),
+                          ];
+                          const icons = [
+                            Icons.favorite_border,
+                            Icons.monitor_heart_outlined,
+                            Icons.medical_services_outlined,
+                            Icons.healing_outlined,
+                          ];
+                          final bgColor = colors[index % colors.length];
+                          final icon = icons[index % icons.length];
+                          return _SpecialistChip(
+                            label: item['label'] as String,
+                            count: item['count'] as int,
+                            backgroundColor: bgColor,
+                            icon: icon,
+                          );
+                        },
+                      );
                     }
                     return ListView.builder(
                       scrollDirection: Axis.horizontal,
@@ -240,7 +281,26 @@ class _HomePatientScreenState extends State<HomePatientScreen> {
                         final label = (data['shortName'] as String?) ??
                             (data['name'] as String?) ?? 'Specialist';
                         final count = (data['doctorsCount'] as num?)?.toInt() ?? 0;
-                        return _SpecialistChip(label: label, count: count);
+                        const colors = [
+                          Color(0xFF0F9D58),
+                          Color(0xFF3B82F6),
+                          Color(0xFFFFA000),
+                          Color(0xFF8B5CF6),
+                        ];
+                        const icons = [
+                          Icons.favorite_border,
+                          Icons.monitor_heart_outlined,
+                          Icons.medical_services_outlined,
+                          Icons.healing_outlined,
+                        ];
+                        final bgColor = colors[index % colors.length];
+                        final icon = icons[index % icons.length];
+                        return _SpecialistChip(
+                          label: label,
+                          count: count,
+                          backgroundColor: bgColor,
+                          icon: icon,
+                        );
                       },
                     );
                   },
@@ -262,7 +322,7 @@ class _HomePatientScreenState extends State<HomePatientScreen> {
               ),
               const SizedBox(height: 12),
               SizedBox(
-                height: 200,
+                height: 190,
                 child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                   stream: FirebaseFirestore.instance
                       .collection('users')
@@ -276,15 +336,19 @@ class _HomePatientScreenState extends State<HomePatientScreen> {
                     if (snapshot.hasError) {
                       return const Center(child: Text('Failed to load doctors'));
                     }
-                    final docs = snapshot.data?.docs ?? [];
+                    final allDocs = snapshot.data?.docs ?? [];
+                    final docs = allDocs.where((d) {
+                      final data = d.data();
+                      final name = (data['name'] as String?) ?? '';
+                      return name.trim() != 'Version 4.0';
+                    }).toList(growable: false);
                     if (docs.isEmpty) {
                       return const Center(child: Text('No top doctors'));
                     }
-
-                    return PageView.builder(
-                      controller: _topDoctorsController,
+                    return ListView.builder(
+                      controller: _topDoctorsScrollController,
+                      scrollDirection: Axis.horizontal,
                       itemCount: docs.length,
-                      padEnds: false,
                       itemBuilder: (context, index) {
                         final doc = docs[index];
                         final data = doc.data();
@@ -293,19 +357,10 @@ class _HomePatientScreenState extends State<HomePatientScreen> {
                             (data['specialtyId'] as String?) ?? 'Specialist';
                         final avatarAsset = (data['avatarAsset'] as String?) ?? _fallbackDoctorAsset(index);
 
-                        final distance = (index - _currentPage).abs();
-                        final scale = 1.0 - (distance * 0.15).clamp(0.0, 0.30);
-                        final translationY = 16 * distance;
-                        final rotationY = (index - _currentPage) * 0.35;
-
-                        return Transform(
-                          alignment: Alignment.center,
-                          transform: Matrix4.identity()
-                            ..setEntry(3, 2, 0.001)
-                            ..translate(0.0, translationY, distance * 40)
-                            ..rotateY(rotationY),
-                          child: Transform.scale(
-                            scale: scale,
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 12),
+                          child: SizedBox(
+                            width: 150,
                             child: _DoctorCard(
                               name: name,
                               role: role,
@@ -359,7 +414,15 @@ class _ProtoNavIcon extends StatelessWidget {
 class _SpecialistChip extends StatelessWidget {
   final String label;
   final int count;
-  const _SpecialistChip({required this.label, required this.count});
+  final Color backgroundColor;
+  final IconData icon;
+
+  const _SpecialistChip({
+    required this.label,
+    required this.count,
+    required this.backgroundColor,
+    required this.icon,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -368,18 +431,39 @@ class _SpecialistChip extends StatelessWidget {
       child: GestureDetector(
         onTap: () => Navigator.of(context).pushNamed(AppRoutes.doctorsList),
         child: Container(
-          width: 120,
-          padding: const EdgeInsets.all(12),
+          width: 136,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           decoration: BoxDecoration(
-            color: const Color(0xFFF7F8FB),
+            color: backgroundColor,
             borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(label, style: const TextStyle(fontWeight: FontWeight.w600, color: kTextColor)),
-              const SizedBox(height: 6),
-              Text('$count Doctors', style: const TextStyle(fontSize: 12, color: kMutedTextColor)),
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 22, color: backgroundColor),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 14),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '$count Doctors',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 12, color: Color(0xFFE0F2F1)),
+              ),
             ],
           ),
         ),
