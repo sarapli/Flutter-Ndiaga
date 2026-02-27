@@ -110,8 +110,9 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: Container(
-              color: const Color(0xFFE9EBF2),
+            child: Image.asset(
+              'asset/Page3.png',
+              fit: BoxFit.cover,
             ),
           ),
           SafeArea(
@@ -136,8 +137,15 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
             child: Container(
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 26),
               decoration: const BoxDecoration(
-                color: kPrimaryColor,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0x0034C1A1),
+                    Color(0xFF34C1A1),
+                  ],
+                ),
               ),
               child: SafeArea(
                 top: false,

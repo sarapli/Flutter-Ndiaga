@@ -128,16 +128,21 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: _cameraOff
-                ? Container(color: const Color(0xFF2A2E3A))
-                : (_joined && _engine != null
-                    ? AgoraVideoView(
-                        controller: VideoViewController(
-                          rtcEngine: _engine!,
-                          canvas: const VideoCanvas(uid: 0),
-                        ),
-                      )
-                    : const Center(child: CircularProgressIndicator())),
+            child: kIsWeb
+                ? Image.asset(
+                    'asset/Page3.png',
+                    fit: BoxFit.cover,
+                  )
+                : _cameraOff
+                    ? Container(color: const Color(0xFF2A2E3A))
+                    : (_joined && _engine != null
+                        ? AgoraVideoView(
+                            controller: VideoViewController(
+                              rtcEngine: _engine!,
+                              canvas: const VideoCanvas(uid: 0),
+                            ),
+                          )
+                        : const Center(child: CircularProgressIndicator())),
           ),
           SafeArea(
             child: Align(
@@ -186,8 +191,15 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
             child: Container(
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 26),
               decoration: const BoxDecoration(
-                color: kPrimaryColor,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0x0034C1A1),
+                    Color(0xFF34C1A1),
+                  ],
+                ),
               ),
               child: SafeArea(
                 top: false,
