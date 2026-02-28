@@ -355,7 +355,19 @@ class _HomePatientScreenState extends State<HomePatientScreen> {
                         final name = (data['name'] as String?) ?? 'Doctor';
                         final role = (data['specialtyLabel'] as String?) ??
                             (data['specialtyId'] as String?) ?? 'Specialist';
-                        final avatarAsset = (data['avatarAsset'] as String?) ?? _fallbackDoctorAsset(index);
+
+                        final existingAvatar = data['avatarAsset'] as String?;
+                        final avatarAsset = existingAvatar ?? _fallbackDoctorAsset(index);
+
+                        // Si aucun avatar n'est encore enregistré pour ce docteur,
+                        // on persiste l'avatar de maquette afin qu'il soit réutilisé
+                        // partout (Search, Call Ended, compte docteur, etc.).
+                        if (existingAvatar == null || existingAvatar.isEmpty) {
+                          FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(doc.id)
+                              .set({'avatarAsset': avatarAsset}, SetOptions(merge: true));
+                        }
 
                         return Padding(
                           padding: const EdgeInsets.only(right: 12),

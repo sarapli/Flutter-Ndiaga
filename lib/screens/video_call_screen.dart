@@ -30,7 +30,13 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   @override
   void initState() {
     super.initState();
-    _initAgora();
+    // On attend la première frame pour être certain que ModalRoute.of(context)
+    // est disponible, en particulier sur le web.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _initAgora();
+      }
+    });
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       setState(() => _seconds++);
@@ -140,10 +146,9 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         children: [
           Positioned.fill(
             child: kIsWeb
-                ? Image.asset(
-                    'asset/Page3.png',
-                    fit: BoxFit.cover,
-                  )
+                // L'affichage vidéo réel est géré côté JS sur le web.
+                // On affiche ici un fond dark + un message d'état.
+                ? Container(color: const Color(0xFF111827))
                 : _cameraOff
                     ? Container(color: const Color(0xFF2A2E3A))
                     : (_joined && _engine != null
@@ -155,6 +160,21 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                           )
                         : const Center(child: CircularProgressIndicator())),
           ),
+          if (kIsWeb)
+            Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: const Text(
+                  'Video call running in browser view.\nPlease allow camera & microphone access.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+              ),
+            ),
           SafeArea(
             child: Align(
               alignment: Alignment.topLeft,

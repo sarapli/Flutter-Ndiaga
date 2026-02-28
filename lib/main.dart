@@ -41,7 +41,6 @@ import 'screens/invite_friend_screen.dart';
 import 'screens/favourite_doctors_screen.dart';
 import 'features/auth/presentation/auth_gate_screen.dart';
 import 'features/shell/presentation/app_shell_screen.dart';
-import 'screens/home_admin_screen.dart';
 import 'services/firebase_initializer.dart';
 import 'session.dart';
 
@@ -131,7 +130,6 @@ class MyApp extends StatelessWidget {
         AppRoutes.shellDoctor: (_) => const AppShellScreen(role: ShellRole.doctor),
         AppRoutes.homePatient: (_) => const HomePatientScreen(),
         AppRoutes.homeDoctor: (_) => const HomeDoctorScreen(),
-        AppRoutes.homeAdmin: (_) => const HomeAdminScreen(),
         AppRoutes.doctorsList: (_) => const DoctorsListScreen(),
         AppRoutes.doctorDetail: (_) => const DoctorDetailScreen(),
         AppRoutes.appointment: (_) => const AppointmentScreen(),

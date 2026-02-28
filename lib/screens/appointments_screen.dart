@@ -144,11 +144,12 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
 
                               return ListView.separated(
                                 padding: const EdgeInsets.all(16),
+                                physics: const BouncingScrollPhysics(),
                                 itemCount: appts.length,
                                 separatorBuilder: (context, index) => const SizedBox(height: 12),
                                 itemBuilder: (context, i) {
                                   final it = appts[i];
-                                  final card = _AppointmentCard(
+                                  final baseCard = _AppointmentCard(
                                     item: it,
                                     onTap: () {
                                       // Pour le fallback, tous les rendez-vous sont de type "voice"
@@ -159,20 +160,49 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                                     },
                                   );
 
-                                  if (i == 0 || appts[i - 1].dateLabel != it.dateLabel) {
-                                    return Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          it.dateLabel,
-                                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: kMutedTextColor),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        card,
-                                      ],
+
+                                  Widget animatedCard(Widget child) {
+                                    return TweenAnimationBuilder<double>(
+                                      tween: Tween(begin: 0.94, end: 1.0),
+                                      duration: Duration(milliseconds: 320 + (i * 40)),
+                                      curve: Curves.easeOutBack,
+                                      builder: (context, scale, child) {
+                                        final dy = (1.0 - scale) * 24;
+                                        return Transform.translate(
+                                          offset: Offset(0, dy),
+                                          child: Transform(
+                                            alignment: Alignment.center,
+                                            transform: Matrix4.identity()
+                                              ..setEntry(3, 2, 0.001)
+                                              ..rotateX((1.0 - scale) * 0.14)
+                                              ..rotateY((1.0 - scale) * -0.10),
+                                            child: Transform.scale(
+                                              scale: scale,
+                                              child: child,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      child: child,
                                     );
                                   }
-                                  return card;
+
+                                  if (i == 0 || appts[i - 1].dateLabel != it.dateLabel) {
+                                    return animatedCard(
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            it.dateLabel,
+                                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: kMutedTextColor),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          baseCard,
+                                        ],
+                                      ),
+                                    );
+                                  }
+                                  return animatedCard(baseCard);
                                 },
                               );
                             },
@@ -198,11 +228,12 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                         }).toList();
                         return ListView.separated(
                           padding: const EdgeInsets.all(16),
+                          physics: const BouncingScrollPhysics(),
                           itemCount: appts.length,
                           separatorBuilder: (context, index) => const SizedBox(height: 12),
                           itemBuilder: (context, i) {
                             final it = appts[i];
-                            final card = _AppointmentCard(
+                            final baseCard = _AppointmentCard(
                               item: it,
                               onTap: () {
                                 final args = {
@@ -221,20 +252,48 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                               },
                             );
 
-                            if (i == 0 || appts[i - 1].dateLabel != it.dateLabel) {
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    it.dateLabel,
-                                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: kMutedTextColor),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  card,
-                                ],
+                            Widget animatedCard(Widget child) {
+                              return TweenAnimationBuilder<double>(
+                                tween: Tween(begin: 0.94, end: 1.0),
+                                duration: Duration(milliseconds: 320 + (i * 40)),
+                                curve: Curves.easeOutBack,
+                                builder: (context, scale, child) {
+                                  final dy = (1.0 - scale) * 24;
+                                  return Transform.translate(
+                                    offset: Offset(0, dy),
+                                    child: Transform(
+                                      alignment: Alignment.center,
+                                      transform: Matrix4.identity()
+                                        ..setEntry(3, 2, 0.001)
+                                        ..rotateX((1.0 - scale) * 0.14)
+                                        ..rotateY((1.0 - scale) * -0.10),
+                                      child: Transform.scale(
+                                        scale: scale,
+                                        child: child,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: child,
                               );
                             }
-                            return card;
+
+                            if (i == 0 || appts[i - 1].dateLabel != it.dateLabel) {
+                              return animatedCard(
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      it.dateLabel,
+                                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: kMutedTextColor),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    baseCard,
+                                  ],
+                                ),
+                              );
+                            }
+                            return animatedCard(baseCard);
                           },
                         );
                       },

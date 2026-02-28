@@ -71,9 +71,17 @@ class _SearchScreenState extends State<SearchScreen> {
                 }
 
                 final query = _query.text.trim().toLowerCase();
+                // On filtre d'abord pour exclure le compte technique "Version 4.0"
+                final withoutTechnical = docs.where((d) {
+                  final data = d.data();
+                  final name = (data['name'] as String?) ?? '';
+                  return name != 'Version 4.0';
+                }).toList(growable: false);
+
+                // Puis on applique la recherche texte éventuelle
                 final filtered = query.isEmpty
-                    ? docs
-                    : docs.where((d) {
+                    ? withoutTechnical
+                    : withoutTechnical.where((d) {
                         final data = d.data();
                         final name = (data['name'] as String?) ?? '';
                         return name.toLowerCase().contains(query);
@@ -85,6 +93,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
                 return ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  physics: const BouncingScrollPhysics(),
                   itemCount: filtered.length,
                   itemBuilder: (context, i) {
                     final doc = filtered[i];
@@ -100,14 +109,39 @@ class _SearchScreenState extends State<SearchScreen> {
                     final rating = (data['rating'] as num?)?.toDouble() ?? 4.8;
                     final reviews = (data['reviews'] as num?)?.toInt() ?? 25;
                     final avatarAsset = data['avatarAsset'] as String?;
+                    final photoUrl = data['photoUrl'] as String?;
 
-                    return _DoctorTile(
-                      doctorId: doc.id,
-                      name: name,
-                      subtitle: subtitle,
-                      rating: rating,
-                      reviews: reviews,
-                      avatarAsset: avatarAsset,
+                    // Animation d'entrée légère avec un scale/translation différent selon l'index
+                    return TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.94, end: 1.0),
+                      duration: Duration(milliseconds: 300 + (i * 30)),
+                      curve: Curves.easeOutBack,
+                      builder: (context, scale, child) {
+                        final dy = (1.0 - scale) * 24;
+                        return Transform.translate(
+                          offset: Offset(0, dy),
+                          child: Transform(
+                            alignment: Alignment.center,
+                            transform: Matrix4.identity()
+                              ..setEntry(3, 2, 0.001)
+                              ..rotateX((1.0 - scale) * 0.18)
+                              ..rotateY((1.0 - scale) * -0.12),
+                            child: Transform.scale(
+                              scale: scale,
+                              child: child,
+                            ),
+                          ),
+                        );
+                      },
+                      child: _DoctorTile(
+                        doctorId: doc.id,
+                        name: name,
+                        subtitle: subtitle,
+                        rating: rating,
+                        reviews: reviews,
+                        avatarAsset: avatarAsset,
+                        photoUrl: photoUrl,
+                      ),
                     );
                   },
                 );
@@ -128,6 +162,7 @@ class _DoctorTile extends StatelessWidget {
   final double rating;
   final int reviews;
   final String? avatarAsset;
+  final String? photoUrl;
 
   const _DoctorTile({
     required this.doctorId,
@@ -136,6 +171,7 @@ class _DoctorTile extends StatelessWidget {
     required this.rating,
     required this.reviews,
     this.avatarAsset,
+    this.photoUrl,
   });
 
   @override
@@ -154,17 +190,7 @@ class _DoctorTile extends StatelessWidget {
               tag: 'doctor-hero',
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: avatarAsset == null || avatarAsset!.isEmpty
-                    ? const ColoredBox(
-                        color: Color(0xFFE9EBF2),
-                        child: SizedBox(width: 66, height: 66),
-                      )
-                    : Image.asset(
-                        avatarAsset!,
-                        width: 66,
-                        height: 66,
-                        fit: BoxFit.cover,
-                      ),
+                child: _buildAvatar(),
               ),
             ),
             const SizedBox(width: 12),
@@ -189,6 +215,32 @@ class _DoctorTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildAvatar() {
+    // Priorité : avatarAsset (docteurs de maquette) -> photoUrl (docteurs réels) -> placeholder
+    if (avatarAsset != null && avatarAsset!.isNotEmpty) {
+      return Image.asset(
+        avatarAsset!,
+        width: 66,
+        height: 66,
+        fit: BoxFit.cover,
+      );
+    }
+
+    if (photoUrl != null && photoUrl!.isNotEmpty) {
+      return Image.network(
+        photoUrl!,
+        width: 66,
+        height: 66,
+        fit: BoxFit.cover,
+      );
+    }
+
+    return const ColoredBox(
+      color: Color(0xFFE9EBF2),
+      child: SizedBox(width: 66, height: 66),
     );
   }
 }
