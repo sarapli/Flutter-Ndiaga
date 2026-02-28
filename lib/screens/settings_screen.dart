@@ -92,7 +92,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
                 builder: (context, snapshot) {
                   final data = snapshot.data?.data();
-                  final name = data?['name'] as String?;
+                  final rawName = data?['name'] as String?;
+                  final authName = user.displayName;
+                  final name = (rawName != null && rawName.trim().isNotEmpty)
+                      ? rawName.trim()
+                      : (authName != null && authName.trim().isNotEmpty)
+                          ? authName.trim()
+                          : null;
                   final photoUrl = data?['photoUrl'] as String?;
                   final avatarAsset = data?['avatarAsset'] as String?;
                   return _HeaderCard(
