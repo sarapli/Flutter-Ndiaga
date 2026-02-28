@@ -74,7 +74,9 @@ class _SignInScreenState extends State<SignInScreen> {
           _navigateByRole('patient');
         }
       } else {
-        _navigateByRole('doctor');
+        // Pour les médecins Google, on les envoie sur le même flux de complétion
+        // que les médecins créés par email: choix de spécialité puis avatar.
+        Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.doctorSpecialty, (r) => false);
       }
       return;
     }
@@ -108,7 +110,8 @@ class _SignInScreenState extends State<SignInScreen> {
     if (selectedRole == 'patient') {
       Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.editProfile, (r) => false, arguments: {'firstTime': true});
     } else {
-      _navigateByRole('doctor');
+      // Nouveau médecin choisi via Google: même flux que sign-up docteur
+      Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.doctorSpecialty, (r) => false);
     }
   }
 

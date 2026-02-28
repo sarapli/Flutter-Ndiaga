@@ -53,6 +53,8 @@ class _ChatScreenState extends State<ChatScreen> {
     final id = await ChatService.instance.ensureConversation(otherId: otherId, otherName: _doctor);
     if (!mounted) return;
     setState(() => _convId = id);
+    // Marquer la conversation comme lue pour l'utilisateur courant
+    await ChatService.instance.markAsRead(id);
   }
 
   @override

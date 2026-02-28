@@ -45,7 +45,12 @@ class ChatService {
       'text': text,
       'createdAt': FieldValue.serverTimestamp(),
     });
-    await _touchConversation(conversationId);
+    await _updateConversationMeta(
+      conversationId,
+      lastType: 'text',
+      lastMessage: text,
+      fromUserId: me,
+    );
   }
 
   Future<void> sendMedia(String conversationId, {required String url, required String type}) async {
@@ -54,16 +59,50 @@ class ChatService {
     await msgRef.set({
       'id': msgRef.id,
       'from': me,
-      'type': type, // 'image' | 'video'
+      'type': type, // 'image' | 'video' | 'audio'
       'url': url,
       'createdAt': FieldValue.serverTimestamp(),
     });
-    await _touchConversation(conversationId);
+    await _updateConversationMeta(
+      conversationId,
+      lastType: type,
+      lastMessage: type, // on pourra affiner l'aperçu si besoin
+      fromUserId: me,
+    );
   }
 
-  Future<void> _touchConversation(String conversationId) async {
+  Future<void> _updateConversationMeta(
+    String conversationId, {
+    required String lastType,
+    required String lastMessage,
+    required String fromUserId,
+  }) async {
+    final me = fromUserId;
+    final parts = conversationId.split('__');
+    if (parts.length != 2) {
+      await _db.collection('conversations').doc(conversationId).set({
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      return;
+    }
+    final a = parts[0];
+    final b = parts[1];
+    final otherId = me == a ? b : a;
+
     await _db.collection('conversations').doc(conversationId).set({
+      'lastMessage': lastMessage,
+      'lastType': lastType,
+      'lastFrom': me,
       'updatedAt': FieldValue.serverTimestamp(),
+      'unread.$otherId': FieldValue.increment(1),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> markAsRead(String conversationId) async {
+    final me = _auth.currentUser?.uid;
+    if (me == null) return;
+    await _db.collection('conversations').doc(conversationId).set({
+      'unread.$me': 0,
     }, SetOptions(merge: true));
   }
 }

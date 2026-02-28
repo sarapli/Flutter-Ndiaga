@@ -23,6 +23,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   bool _obscure = true;
   String? _photoUrl;
   String? _role;
+  String? _avatarAsset;
   bool _loading = false;
   String _phoneCode = '+254';
   String _countryCode = 'KE';
@@ -76,8 +77,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _gender = (data['gender'] as String?) ?? _gender;
       final ts = data['dob'];
       if (ts is Timestamp) _dob = ts.toDate();
-      _photoUrl = (data['photoUrl'] as String?);
-      _role = (data['role'] as String?);
+      _photoUrl = data['photoUrl'] as String?;
+      _role = data['role'] as String?;
+      _avatarAsset = data['avatarAsset'] as String?;
       _phoneCode = (data['phoneCode'] as String?) ?? _phoneCode;
       _countryCode = (data['countryCode'] as String?) ?? _countryCode;
     });
@@ -105,6 +107,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       lastDate: DateTime(now.year + 1),
     );
     if (picked != null) setState(() => _dob = picked);
+  }
+
+  Widget _buildProfileImage() {
+    // Pour les médecins, on privilégie l'avatarAsset s'il est présent
+    if (_role == 'doctor' && _avatarAsset != null && _avatarAsset!.isNotEmpty) {
+      return Image.asset(_avatarAsset!, fit: BoxFit.cover);
+    }
+    // Sinon, on garde le comportement existant: photoUrl ou avatar patient par défaut
+    if (_photoUrl != null && _photoUrl!.isNotEmpty) {
+      return Image.network(_photoUrl!, fit: BoxFit.cover);
+    }
+    return Image.asset('asset/Profile.png', fit: BoxFit.cover);
   }
 
   @override
@@ -137,9 +151,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       child: SizedBox(
                         width: 120,
                         height: 120,
-                        child: _photoUrl == null
-                            ? Image.asset('asset/Profile.png', fit: BoxFit.cover)
-                            : Image.network(_photoUrl!, fit: BoxFit.cover),
+                        child: _buildProfileImage(),
                       ),
                     ),
                     Positioned(
@@ -296,8 +308,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           }
                           if (firstTime) {
                             final role = _role ?? 'patient';
+                            // Si le profil est complété pour la première fois :
+                            // - les patients vont sur homePatient
+                            // - les docteurs vont sur le shellDoctor (dashboard médecin moderne)
                             nav.pushNamedAndRemoveUntil(
-                              role == 'doctor' ? AppRoutes.homeDoctor : AppRoutes.homePatient,
+                              role == 'doctor' ? AppRoutes.shellDoctor : AppRoutes.homePatient,
                               (r) => false,
                             );
                           } else {

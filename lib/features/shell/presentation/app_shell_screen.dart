@@ -4,9 +4,12 @@ import '../../../app_style.dart';
 import '../../../screens/appointments_screen.dart';
 import '../../../screens/chat_screen.dart';
 import '../../../screens/doctors_list_screen.dart';
+import '../../../screens/doctor_patient_search_screen.dart';
+import '../../../screens/doctor_appointments_screen.dart';
 import '../../dashboard/presentation/patient_dashboard_screen.dart';
 import '../../dashboard/presentation/doctor_dashboard_screen.dart';
 import '../../../screens/settings_screen.dart';
+import '../../../session.dart';
 
 enum ShellRole { patient, doctor }
 
@@ -23,16 +26,38 @@ class _AppShellScreenState extends State<AppShellScreen> {
   int _index = 0;
 
   @override
-  Widget build(BuildContext context) {
-    final dashboard = widget.role == ShellRole.doctor ? const DoctorDashboardScreen() : const PatientDashboardScreen();
+  void initState() {
+    super.initState();
+    // Propager le rôle courant (patient / doctor) dans la session globale
+    // afin que les autres écrans (Settings, Appointments, etc.) puissent
+    // adapter leur interface.
+    if (widget.role == ShellRole.doctor) {
+      appSession.setRole(UserRole.doctor);
+    } else {
+      appSession.setRole(UserRole.patient);
+    }
+  }
 
-    final pages = <Widget>[
-      dashboard,
-      const DoctorsListScreen(),
-      const AppointmentsScreen(showBottomBar: false),
-      const ChatScreen(),
-      const SettingsScreen(showBottomBar: false),
-    ];
+  @override
+  Widget build(BuildContext context) {
+    final isDoctor = widget.role == ShellRole.doctor;
+    final dashboard = isDoctor ? const DoctorDashboardScreen() : const PatientDashboardScreen();
+
+    final pages = isDoctor
+        ? <Widget>[
+            dashboard, // 0 : Dashboard docteur
+            const DoctorsListScreen(), // 1 : Notifications
+            const DoctorPatientSearchScreen(), // 2 : Recherche patient
+            const DoctorAppointmentsScreen(), // 3 : Rendez-vous docteur
+            const SettingsScreen(showBottomBar: false), // 4 : Réglages
+          ]
+        : <Widget>[
+            dashboard, // 0 : Dashboard patient
+            const DoctorsListScreen(), // 1 : Liste des docteurs
+            const AppointmentsScreen(showBottomBar: false), // 2 : Mes rendez-vous patient
+            const ChatScreen(), // 3 : Chat
+            const SettingsScreen(showBottomBar: false), // 4 : Réglages
+          ];
 
     return Scaffold(
       backgroundColor: Colors.white,

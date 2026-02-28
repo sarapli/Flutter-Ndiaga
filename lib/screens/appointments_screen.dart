@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../app_style.dart';
 import '../app_routes.dart';
+import '../session.dart';
 
 class AppointmentsScreen extends StatefulWidget {
   final bool showBottomBar;
@@ -36,6 +37,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
+    final isDoctor = appSession.role == UserRole.doctor;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -51,35 +53,46 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
+      body: isDoctor
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24.0),
+                child: Text(
+                  'This appointments view is reserved for patients.\n\nAs a doctor, please use your Doctor Dashboard to see and manage your patients.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: kMutedTextColor, fontSize: 14),
+                ),
+              ),
+            )
+          : Column(
               children: [
-                Expanded(
-                  child: _SegmentButton(
-                    label: 'Upcoming',
-                    selected: upcoming,
-                    onTap: () => setState(() => upcoming = true),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _SegmentButton(
+                          label: 'Upcoming',
+                          selected: upcoming,
+                          onTap: () => setState(() => upcoming = true),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _SegmentButton(
+                          label: 'Past',
+                          selected: !upcoming,
+                          onTap: () => setState(() => upcoming = false),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _SegmentButton(
-                    label: 'Past',
-                    selected: !upcoming,
-                    onTap: () => setState(() => upcoming = false),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (upcoming)
-            Expanded(
-              child: user == null
-                  ? const Center(child: Text('Please sign in to see your appointments', style: TextStyle(color: kMutedTextColor)))
-                  : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                if (upcoming)
+                  Expanded(
+                    child: user == null
+                        ? const Center(child: Text('Please sign in to see your appointments', style: TextStyle(color: kMutedTextColor)))
+                        : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                       stream: FirebaseFirestore.instance
                           .collection('appointments')
                           .where('patientId', isEqualTo: user.uid)
@@ -296,24 +309,24 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                             return animatedCard(baseCard);
                           },
                         );
-                      },
+                        },
+                      ),
+                )
+                else
+                  Expanded(
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(Icons.feed_outlined, size: 96, color: Color(0xFFE9EBF2)),
+                          SizedBox(height: 10),
+                          Text('You have no appointment in past', style: TextStyle(color: kMutedTextColor)),
+                        ],
+                      ),
                     ),
-            )
-          else
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Icon(Icons.feed_outlined, size: 96, color: Color(0xFFE9EBF2)),
-                    SizedBox(height: 10),
-                    Text('You have no appointment in past', style: TextStyle(color: kMutedTextColor)),
-                  ],
-                ),
-              ),
+                  ),
+              ],
             ),
-        ],
-      ),
       bottomNavigationBar: widget.showBottomBar ? const _BottomBar(index: 3) : null,
     );
   }

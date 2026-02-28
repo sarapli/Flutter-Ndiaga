@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../app_routes.dart';
@@ -16,6 +18,7 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
   String? gender;
   DateTime? dob;
   final TextEditingController _address = TextEditingController();
+  String? _selectedAvatar;
 
   @override
   void dispose() {
@@ -53,26 +56,20 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
                   ),
                   const SizedBox(height: 22),
                   Center(
-                    child: Stack(
-                      children: [
-                        const CircleAvatar(radius: 44, backgroundColor: Color(0xFFF0F2F9)),
-                        Positioned(
-                          bottom: 0,
-                          right: 0,
-                          child: Container(
-                            width: 32,
-                            height: 32,
-                            decoration: const BoxDecoration(
-                              color: kPrimaryColor,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.camera_alt, color: Colors.white, size: 18),
-                          ),
-                        ),
-                      ],
+                    child: SizedBox(
+                      height: 110,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: [
+                          _avatarTile('asset/Imagedoctor1.png'),
+                          _avatarTile('asset/imagedoctor2.png'),
+                          _avatarTile('asset/imagedoctor3.png'),
+                          _avatarTile('asset/imagedoctor4.png'),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 20),
                   // Gender
                   const Text('Gender', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: kTextColor)),
                   const SizedBox(height: 6),
@@ -123,11 +120,22 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
                   SizedBox(
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
+                        final nav = Navigator.of(context);
                         final route = appSession.role == UserRole.doctor
-                            ? AppRoutes.homeDoctor
+                            ? AppRoutes.shellDoctor
                             : AppRoutes.homePatient;
-                        Navigator.of(context).pushNamedAndRemoveUntil(route, (r) => false);
+
+                        if (appSession.role == UserRole.doctor) {
+                          final user = FirebaseAuth.instance.currentUser;
+                          if (user != null && _selectedAvatar != null) {
+                            await FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(user.uid)
+                                .set({'avatarAsset': _selectedAvatar}, SetOptions(merge: true));
+                          }
+                        }
+                        nav.pushNamedAndRemoveUntil(route, (r) => false);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: kPrimaryColor,
@@ -146,4 +154,34 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
       ),
     );
   }
+
+  Widget _avatarTile(String asset) {
+    final selected = _selectedAvatar == asset;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedAvatar = asset;
+        });
+      },
+      child: Container(
+        width: 90,
+        margin: const EdgeInsets.symmetric(horizontal: 6),
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: selected ? kPrimaryColor : const Color(0xFFE0E3EE), width: selected ? 2 : 1),
+          boxShadow: selected
+              ? const [
+                  BoxShadow(color: Color(0x22000000), blurRadius: 12, offset: Offset(0, 6)),
+                ]
+              : null,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Image.asset(asset, fit: BoxFit.cover),
+        ),
+      ),
+    );
+  }
 }
+

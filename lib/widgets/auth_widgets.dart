@@ -67,11 +67,55 @@ class AuthField extends StatelessWidget {
   }
 }
 
-class PhoneField extends StatelessWidget {
+class PhoneField extends StatefulWidget {
   final String label;
   final TextEditingController? controller;
 
   const PhoneField({super.key, this.label = 'Phone number', this.controller});
+
+  @override
+  State<PhoneField> createState() => _PhoneFieldState();
+}
+
+class _PhoneFieldState extends State<PhoneField> {
+  String _dialCode = '+254';
+  String _localNumber = '';
+
+  Future<void> _pickCountryCode() async {
+    final codes = <String>['+221', '+225', '+237', '+254'];
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(12.0),
+                child: Text('Select country code', style: TextStyle(fontWeight: FontWeight.w600)),
+              ),
+              for (final c in codes)
+                ListTile(
+                  title: Text(c),
+                  onTap: () => Navigator.of(ctx).pop(c),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+    if (selected != null && mounted) {
+      setState(() {
+        _dialCode = selected;
+      });
+      widget.controller?.text = '$_dialCode$_localNumber';
+    }
+  }
+
+  void _onNumberChanged(String value) {
+    _localNumber = value;
+    widget.controller?.text = value.isEmpty ? '' : '$_dialCode$value';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +127,7 @@ class PhoneField extends StatelessWidget {
             const Icon(Icons.call_outlined, size: 22, color: Color(0xFF9CA3B7)),
             const SizedBox(width: 12),
             Text(
-              label,
+              widget.label,
               style: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w500,
@@ -95,25 +139,28 @@ class PhoneField extends StatelessWidget {
         const SizedBox(height: 6),
         Row(
           children: [
-            Row(
-              children: const [
-                Text(
-                  '+254',
-                  style: TextStyle(fontSize: 14.5, color: Color(0xFFB6BACC)),
-                ),
-                SizedBox(width: 6),
-                Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  size: 20,
-                  color: Color(0xFFB6BACC),
-                ),
-              ],
+            InkWell(
+              onTap: _pickCountryCode,
+              child: Row(
+                children: [
+                  Text(
+                    _dialCode,
+                    style: const TextStyle(fontSize: 14.5, color: Color(0xFFB6BACC)),
+                  ),
+                  const SizedBox(width: 6),
+                  const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    size: 20,
+                    color: Color(0xFFB6BACC),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: TextField(
-                controller: controller,
                 keyboardType: TextInputType.phone,
+                onChanged: _onNumberChanged,
                 decoration: const InputDecoration(
                   hintText: 'Enter your phone number',
                   hintStyle: TextStyle(color: Color(0xFFB6BACC)),

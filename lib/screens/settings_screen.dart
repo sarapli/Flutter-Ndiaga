@@ -67,6 +67,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDoctor = appSession.role == UserRole.doctor;
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -90,11 +91,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                 stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
                 builder: (context, snapshot) {
-                  final name = snapshot.data?.data()?['name'] as String?;
-                  final photoUrl = snapshot.data?.data()?['photoUrl'] as String?;
+                  final data = snapshot.data?.data();
+                  final name = data?['name'] as String?;
+                  final photoUrl = data?['photoUrl'] as String?;
+                  final avatarAsset = data?['avatarAsset'] as String?;
                   return _HeaderCard(
                     onEdit: () => Navigator.of(context).pushNamed(AppRoutes.editProfile),
                     name: name ?? 'Hello',
+                    avatarAsset: avatarAsset,
                     photoUrl: photoUrl,
                   );
                 },
@@ -102,13 +106,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           const SizedBox(height: 16),
-          _SettingsTile(
-            leading: Icons.workspace_premium_outlined,
-            title: 'Become a pro member',
-            trailing: const Icon(Icons.chevron_right, color: kMutedTextColor),
-            onTap: () => Navigator.of(context).pushNamed(AppRoutes.proMember),
-          ),
-          const SizedBox(height: 8),
+          if (!isDoctor) ...[
+            _SettingsTile(
+              leading: Icons.workspace_premium_outlined,
+              title: 'Become a pro member',
+              trailing: const Icon(Icons.chevron_right, color: kMutedTextColor),
+              onTap: () => Navigator.of(context).pushNamed(AppRoutes.proMember),
+            ),
+            const SizedBox(height: 8),
+          ],
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
             decoration: _tileBoxDecoration(),
@@ -135,34 +141,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: _openLanguage,
           ),
           const SizedBox(height: 8),
-          _SettingsTile(
-            leading: Icons.person_add_alt,
-            title: 'Invite a friend',
-            trailing: const Icon(Icons.chevron_right, color: kMutedTextColor),
-            onTap: () => Navigator.of(context).pushNamed(AppRoutes.inviteFriend),
-          ),
-          const SizedBox(height: 8),
-          _SettingsTile(
-            leading: Icons.favorite_border,
-            title: 'Favourite doctors',
-            trailing: const Icon(Icons.chevron_right, color: kMutedTextColor),
-            onTap: () => Navigator.of(context).pushNamed(AppRoutes.favouriteDoctors),
-          ),
-          const SizedBox(height: 8),
-          _SettingsTile(
-            leading: Icons.help_outline,
-            title: 'FAQs',
-            trailing: const Icon(Icons.chevron_right, color: kMutedTextColor),
-            onTap: () => Navigator.of(context).pushNamed(AppRoutes.faqs),
-          ),
-          const SizedBox(height: 8),
-          _SettingsTile(
-            leading: Icons.support_outlined,
-            title: 'Help',
-            trailing: const Icon(Icons.chevron_right, color: kMutedTextColor),
-            onTap: () => Navigator.of(context).pushNamed(AppRoutes.help),
-          ),
-          const SizedBox(height: 8),
+          if (!isDoctor) ...[
+            _SettingsTile(
+              leading: Icons.person_add_alt,
+              title: 'Invite a friend',
+              trailing: const Icon(Icons.chevron_right, color: kMutedTextColor),
+              onTap: () => Navigator.of(context).pushNamed(AppRoutes.inviteFriend),
+            ),
+            const SizedBox(height: 8),
+            _SettingsTile(
+              leading: Icons.favorite_border,
+              title: 'Favourite doctors',
+              trailing: const Icon(Icons.chevron_right, color: kMutedTextColor),
+              onTap: () => Navigator.of(context).pushNamed(AppRoutes.favouriteDoctors),
+            ),
+            const SizedBox(height: 8),
+            _SettingsTile(
+              leading: Icons.help_outline,
+              title: 'FAQs',
+              trailing: const Icon(Icons.chevron_right, color: kMutedTextColor),
+              onTap: () => Navigator.of(context).pushNamed(AppRoutes.faqs),
+            ),
+            const SizedBox(height: 8),
+            _SettingsTile(
+              leading: Icons.support_outlined,
+              title: 'Help',
+              trailing: const Icon(Icons.chevron_right, color: kMutedTextColor),
+              onTap: () => Navigator.of(context).pushNamed(AppRoutes.help),
+            ),
+            const SizedBox(height: 8),
+          ],
           _SettingsTile(
             leading: Icons.logout,
             title: 'Logout',
@@ -182,8 +190,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 class _HeaderCard extends StatelessWidget {
   final VoidCallback onEdit;
   final String? name;
+  final String? avatarAsset;
   final String? photoUrl;
-  const _HeaderCard({required this.onEdit, this.name, this.photoUrl});
+  const _HeaderCard({required this.onEdit, this.name, this.avatarAsset, this.photoUrl});
 
   @override
   Widget build(BuildContext context) {
@@ -197,13 +206,10 @@ class _HeaderCard extends StatelessWidget {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: SizedBox
-              (
+            child: SizedBox(
               width: 64,
               height: 64,
-              child: (photoUrl == null || photoUrl!.isEmpty)
-                  ? Image.asset('asset/Profile.png', fit: BoxFit.cover)
-                  : Image.network(photoUrl!, fit: BoxFit.cover),
+              child: _buildAvatar(),
             ),
           ),
           const SizedBox(width: 12),
@@ -232,6 +238,16 @@ class _HeaderCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Widget _buildAvatar() {
+    if (avatarAsset != null && avatarAsset!.isNotEmpty) {
+      return Image.asset(avatarAsset!, fit: BoxFit.cover);
+    }
+    if (photoUrl != null && photoUrl!.isNotEmpty) {
+      return Image.network(photoUrl!, fit: BoxFit.cover);
+    }
+    return Image.asset('asset/Profile.png', fit: BoxFit.cover);
   }
 }
 
