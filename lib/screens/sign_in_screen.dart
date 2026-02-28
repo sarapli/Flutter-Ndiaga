@@ -64,55 +64,36 @@ class _SignInScreenState extends State<SignInScreen> {
     final data = snap.data() ?? <String, dynamic>{};
     final role = data['role'] as String?;
 
+    // Si un rôle existe déjà, on respecte ce rôle
     if (role == 'patient' || role == 'doctor') {
       if (!mounted) return;
       if (role == 'patient') {
-        final hasMinimalProfile = ((data['name'] as String?)?.isNotEmpty == true) && ((data['phone'] as String?)?.isNotEmpty == true);
+        final hasMinimalProfile = ((data['name'] as String?)?.isNotEmpty == true) &&
+            ((data['phone'] as String?)?.isNotEmpty == true);
         if (!hasMinimalProfile) {
-          Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.editProfile, (r) => false, arguments: {'firstTime': true});
+          Navigator.of(context).pushNamedAndRemoveUntil(
+            AppRoutes.editProfile,
+            (r) => false,
+            arguments: {'firstTime': true},
+          );
         } else {
           _navigateByRole('patient');
         }
       } else {
-        // Pour les médecins Google, on les envoie sur le même flux de complétion
-        // que les médecins créés par email: choix de spécialité puis avatar.
-        Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.doctorSpecialty, (r) => false);
+        // Utilisateur déjà marqué comme docteur (existant) : on le route comme docteur
+        _navigateByRole('doctor');
       }
       return;
     }
 
+    // Nouveau compte social sans rôle : on force désormais le rôle patient
+    await ref.set({'role': 'patient'}, SetOptions(merge: true));
     if (!mounted) return;
-    final selectedRole = await showDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Choose your role'),
-          content: const Text('Are you signing in as a patient or a doctor?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop('patient'),
-              child: const Text('Patient'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop('doctor'),
-              child: const Text('Doctor'),
-            ),
-          ],
-        );
-      },
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      AppRoutes.editProfile,
+      (r) => false,
+      arguments: {'firstTime': true},
     );
-
-    if (selectedRole == null) return;
-
-    await ref.set({'role': selectedRole}, SetOptions(merge: true));
-    if (!mounted) return;
-    if (selectedRole == 'patient') {
-      Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.editProfile, (r) => false, arguments: {'firstTime': true});
-    } else {
-      // Nouveau médecin choisi via Google: même flux que sign-up docteur
-      Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.doctorSpecialty, (r) => false);
-    }
   }
 
   void _navigateByRole(String role) {
